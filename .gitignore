@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Dataset — large satellite imagery (download with scripts/download_events.py)
+data/processed/
+
+# Model checkpoints — too large for git
+outputs/*.pt
+
+# External benchmark repo — clone separately
+BRIGHT/
+
+# Environment secrets
+.env
