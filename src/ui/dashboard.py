@@ -129,8 +129,8 @@ def render_gallery(rows: pd.DataFrame, model_col: str, model_name_col: str):
             sar_bytes = base64.b64decode(row["sar_thumb"])
 
             c1, c2 = st.columns(2)
-            c1.image(opt_bytes, use_container_width=True, caption="Optical")
-            c2.image(sar_bytes, use_container_width=True, caption="SAR")
+            c1.image(opt_bytes, width='stretch', caption="Optical")
+            c2.image(sar_bytes, width='stretch', caption="SAR")
 
             true_name = row["true_label_name"]
             pred_name = row[model_name_col]
@@ -162,10 +162,10 @@ def render_inspector(df: pd.DataFrame):
     c1, c2, c3 = st.columns([1, 1, 2])
     with c1:
         st.image(base64.b64decode(row["optical_thumb"]), caption="Pre-event Optical",
-                 use_container_width=True)
+                 width='stretch')
     with c2:
         st.image(base64.b64decode(row["sar_thumb"]), caption="Post-event SAR",
-                 use_container_width=True)
+                 width='stretch')
     with c3:
         true_name = row["true_label_name"]
         st.markdown(f"**True label:** {_badge(true_name, CLASS_COLORS[true_name])}", unsafe_allow_html=True)
@@ -186,7 +186,7 @@ def render_inspector(df: pd.DataFrame):
             margin=dict(l=0, r=0, t=10, b=0),
             legend=dict(orientation="h", y=1.1),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 
 # ── Main layout ───────────────────────────────────────────────────────────────
@@ -209,6 +209,8 @@ def main():
     # ── Sidebar ───────────────────────────────────────────────────────────────
     with st.sidebar:
         st.header("Filters")
+        st.info("Filters apply to the **Tile Gallery** and **Tile Inspector** tabs.\n\n"
+                "The Ablation Results tab always shows the held-out val set.", icon="ℹ️")
         split_choice = st.radio("Split", ["Val (held-out)", "Train", "All"])
         label_filter = st.multiselect("True label", DAMAGE_NAMES, default=DAMAGE_NAMES)
         error_only   = st.checkbox("Misclassified tiles only")
@@ -241,7 +243,7 @@ def main():
 
         with col_chart:
             st.subheader("Per-class F1 (val set)")
-            st.plotly_chart(ablation_bar(val_df), use_container_width=True)
+            st.plotly_chart(ablation_bar(val_df), width='stretch')
 
         with col_cm1:
             st.subheader("Multimodal")
@@ -249,7 +251,7 @@ def main():
                 val_df["true_label"], val_df["pred_multimodal"],
                 f"Confusion — Multimodal (F1={f1_mm:.3f})"
             )
-            st.plotly_chart(fig_mm, use_container_width=True)
+            st.plotly_chart(fig_mm, width='stretch')
 
         with col_cm2:
             st.subheader("Optical-only")
@@ -257,7 +259,7 @@ def main():
                 val_df["true_label"], val_df["pred_optical"],
                 f"Confusion — Optical-only (F1={f1_opt:.3f})"
             )
-            st.plotly_chart(fig_opt, use_container_width=True)
+            st.plotly_chart(fig_opt, width='stretch')
 
         # Label distribution
         st.subheader("Val set label distribution")
@@ -269,7 +271,7 @@ def main():
         ))
         fig_dist.update_layout(yaxis_title="Tiles", height=250,
                                margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig_dist, use_container_width=True)
+        st.plotly_chart(fig_dist, width='stretch')
 
     with tab_gallery:
         # Apply sidebar filters

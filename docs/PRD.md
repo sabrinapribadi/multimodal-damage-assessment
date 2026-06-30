@@ -3,7 +3,7 @@ Project: Multimodal Building Damage Assessment — SAR + Optical Fusion with BRI
 Version: 1.5 (Turkey Earthquake Ablation + Streamlit Deployment)
 Author: Sabrina Pribadi
 Date: June 30, 2026
-Status: Phase 1 Complete — Phase 1.5 Planned
+Status: Phase 1 Complete — Phase 1.5 In Progress
 
 
 1. EXECUTIVE SUMMARY
@@ -477,7 +477,33 @@ Documentation (all achieved):
   Model is conservative: defaults to Intact when uncertain
 
 
-14. APPENDIX
+14. LESSONS LEARNED — PHASE 1
+
+1. The pipeline works end-to-end on Apple MPS without GPU. Selective range-request
+   downloading, corruption-guarded data loading, custom CNN training, and Streamlit
+   deployment all function correctly. Hardware constraint became a design asset.
+
+2. The falsification gate correctly identified insufficient data. The ablation gate
+   (+0.05 F1) was not passed. The root cause was diagnosable: 6 Damaged val samples
+   makes the Damaged class F1 undefined for both models, correctly driving macro F1
+   below the gate threshold. The framework worked as designed.
+
+3. The Damaged class is the hardest to classify. Intact (structurally stable) and
+   Destroyed (rubble signature) have distinct visual and SAR signatures. Damaged buildings
+   are partially standing with subtle SAR shadow changes — ambiguous at 512×512 tile
+   resolution. Class imbalance compounds this: only 6 val examples out of 112.
+
+4. SAR provides a real but small signal. +1.7 pp macro F1 at epoch 5, reproduced across
+   runs. Destroyed recall = 0.78 for both models — the backbone learns backscatter loss
+   from structural collapse. The signal exists; a stronger backbone and more balanced data
+   will amplify it.
+
+5. Pre-computed parquet is the right deployment architecture for a portfolio demo. The
+   dashboard loads a 15 MB file with 5 pure-Python dependencies. Zero inference overhead,
+   no rasterio, no GPU. Any reviewer can run it in under 60 seconds with pip install.
+
+
+15. APPENDIX
 
 - Data Source: https://huggingface.co/datasets/Kullervo/BRIGHT
 - GitHub Repository: https://github.com/sabrinapribadi/multimodal-damage-assessment
@@ -490,12 +516,15 @@ Documentation (all achieved):
     Phase 2:           ResNet-18 pretrained optical + averaged-first-conv SAR — architecture confound removed
     Phase 3:           ResNet-18 + UNet decoder — pixel-level segmentation, mIoU evaluation
     Phase 4:           DamageFormer / ChangeMamba — match BRIGHT paper benchmark
-- ADR Index:
+- ADR Index (see docs/adr/README.md for full index with decision dependency graph):
     ADR-001: Tile classification as stepping stone to pixel segmentation
     ADR-002: Area-weighted label derivation (1%/5% thresholds; Morocco amendment)
+             Decision drove: _derive_tile_label() thresholds; Morocco→Turkey switch
     ADR-003: Macro F1 + relative improvement gate (+0.05)
+             Decision drove: sklearn labels=list(range(3)) fix; falsification of Phase 1 gate
     ADR-004: ResNet-18 backbone (Phase 2); averaged first conv for SAR domain adaptation
     ADR-005: Spatial/global split; AdaptiveAvgPool2d as separate module for Phase 3 transfer
+             Decision drove: BranchCNN.pool as standalone module; encode() returning all skips
     ADR-006: GeoJSON (primary) / PNG (secondary) / SMS (tertiary) output hierarchy
 - Citation:
     Chen et al. (2025). BRIGHT: a globally distributed multimodal building damage assessment

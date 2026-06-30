@@ -1,15 +1,53 @@
 # Multimodal Building Damage Assessment
 
-An end-to-end deep learning system for satellite-based building damage classification after
-natural disasters. Fuses pre-event optical imagery with post-event SAR data in a dual-branch
-CNN, trained and evaluated on the BRIGHT dataset. Includes an HTTP range-request downloader,
-ablation training pipeline, and a Streamlit dashboard powered by pre-computed inference
-(no model weights or GeoTIFF files needed at runtime).
-
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![Streamlit](https://img.shields.io/badge/Dashboard-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit)](https://streamlit.io)
 [![Dataset](https://img.shields.io/badge/Dataset-BRIGHT-00BFFF?style=for-the-badge)](https://huggingface.co/datasets/Kullervo/BRIGHT)
+
+## Why This Project
+
+After a disaster like an earthquake or hurricane, first responders need damage maps within hours — but optical satellite imagery is frequently blocked by clouds, smoke, or darkness. Synthetic Aperture Radar (SAR) penetrates all of these, making it available day and night in any weather.
+
+This project builds a dual-modality deep learning system that fuses pre-event optical imagery with post-event SAR to classify building damage at the tile level. The core research question — framed as a rigorous ablation — is: **does adding SAR to optical actually improve damage classification, or is optical alone sufficient?**
+
+The answer from Phase 1 (Turkey earthquake, 884 labelled tiles): SAR provides a measurable positive signal (+1.7 pp macro F1), but the Damaged class remains the blocker due to severe class imbalance in the val set. Phase 1.5 adds Beirut explosion data to address this directly.
+
+## System Architecture
+
+```mermaid
+flowchart LR
+    A[("HuggingFace\nBRIGHT Dataset\n9.9 GB pre-event.zip\n3.3 GB post-event.zip")] -->|"HTTP range requests\n(central directory only)"| B
+
+    subgraph B ["Download Pipeline (scripts/download_events.py)"]
+        B1["Zip64 EOCD\nParser"] --> B2["Central Directory\nCache (.cd_cache)"]
+        B2 --> B3["Selective Tile\nDownloader"]
+    end
+
+    B3 -->|"~3.5 GB TIFs\n(Turkey only)"| C
+
+    subgraph C ["Data Loading (src/data/brighT_loader.py)"]
+        C1["_is_valid_tif()\ncorruption guard"] --> C2["_derive_tile_label()\narea-weighted thresholds"]
+        C2 --> C3["BRIGHTDataset\n(optical 3ch + SAR 1ch)"]
+    end
+
+    C3 --> D
+
+    subgraph D ["Training (scripts/train_model.py)"]
+        D1["MultimodalDamageCNN\n(optical + SAR)"] --> D3["Ablation Gate\nΔF1 > 0.05"]
+        D2["SingleModalDamageCNN\n(optical only)"] --> D3
+    end
+
+    D --> E["scripts/export_inference.py\n(parquet + base64 thumbnails)"]
+
+    E -->|"data/inference_results.parquet\n(15 MB — committed to git)"| F
+
+    subgraph F ["Dashboard (src/ui/dashboard.py)"]
+        F1["Ablation Results\n(KPIs + confusion matrices)"]
+        F2["Tile Gallery\n(paginated + filtered)"]
+        F3["Tile Inspector\n(per-tile confidence)"]
+    end
+```
 
 ## Features
 
@@ -60,6 +98,41 @@ full 9.9 GB pre-event.zip or 3.3 GB post-event.zip.
 > Damaged class (6 val samples) drags macro F1 for both. Phase 1.5 will add Beirut explosion
 > data (15–20% Damaged rate) to address the class imbalance.
 
+## Key Takeaways — Phase 1 Lessons Learned
+
+1. **The pipeline works end-to-end on Apple MPS.** Selective range-request download, custom CNN training, and Streamlit deployment all run without GPU. The hardware constraint was a design asset, not a limitation.
+
+2. **The falsification gate correctly identified insufficient data.** The ablation gate (+0.05 F1) was not passed. The diagnosis was precise: the Damaged class had 6 val samples, making its F1 numerically undefined for both models. The gate worked as intended — it prevented over-interpretation of a noisy result.
+
+3. **The Damaged class is the hardest to classify.** Intact and Destroyed have visually distinct signatures (stable vs. rubble). Damaged is the ambiguous middle ground — partially standing buildings with SAR shadow changes that are subtle at 512×512 tile resolution. Class imbalance compounds this.
+
+4. **SAR provides a real but small signal improvement.** +1.7 pp macro F1 at epoch 5 is consistent and reproduced. Destroyed recall is 0.78 for both models — the backbone is learning structural collapse features. The SAR channel is not noise. The signal will be more visible with a stronger backbone (Phase 2) and more balanced data (Phase 1.5).
+
+5. **Pre-computed parquet is the right deployment architecture.** The Streamlit dashboard loads from a 15 MB file with five pure-Python dependencies. No model weights, no rasterio, no GPU at runtime. This makes the demo instantly accessible to any reviewer.
+
+## Roadmap
+
+| Phase | Focus | Status |
+|-------|-------|--------|
+| **Phase 1** | Custom 4-layer CNN, Turkey earthquake. Validate SAR signal vs optical-only via ablation gate. | **Complete** |
+| **Phase 1.5** | Add Beirut explosion data (15–20% Damaged rate). Address class imbalance; re-test ablation gate. | Planned |
+| **Phase 2** | ResNet-18 pretrained optical branch + averaged first conv for SAR domain adaptation. Remove architecture as a confound. | Planned |
+| **Phase 3** | Add UNet-style decoder to the Phase 2 encoder (reuse weights, no retraining). Pixel-level segmentation, mIoU evaluation. | Planned |
+| **Phase 4** | DamageFormer / ChangeMamba. Match BRIGHT paper benchmark scores. | Exploratory |
+
+## Architecture Decision Records
+
+All major design decisions are documented before implementation. See [docs/adr/](docs/adr/README.md) for the full index.
+
+| ADR | Decision | Status |
+|-----|----------|--------|
+| [ADR-001](docs/adr/ADR-001-task-framing.md) | Tile-level classification as stepping stone to pixel segmentation | Accepted |
+| [ADR-002](docs/adr/ADR-002-tile-label-derivation.md) | Area-weighted label derivation with 1%/5% thresholds | Amended |
+| [ADR-003](docs/adr/ADR-003-validation-strategy.md) | Macro F1 + relative improvement gate (+0.05) | Accepted |
+| [ADR-004](docs/adr/ADR-004-backbone-and-sar-adaptation.md) | ResNet-18 backbone with averaged first conv for SAR (Phase 2) | Accepted |
+| [ADR-005](docs/adr/ADR-005-encoder-architecture.md) | Spatial/global split; AdaptiveAvgPool2d as separable module | Accepted |
+| [ADR-006](docs/adr/ADR-006-deployment-and-output.md) | GeoJSON/PNG/SMS output hierarchy for field deployment | Accepted |
+
 ## Project Structure
 
 ```
@@ -75,7 +148,6 @@ multimodal-damage-assessment/
 │       └── dashboard.py               # Streamlit 3-tab dashboard (reads parquet only)
 ├── scripts/
 │   ├── download_events.py             # Selective HuggingFace downloader (range requests)
-│   ├── download_morocco.py            # Legacy Morocco-specific downloader
 │   ├── train_model.py                 # Multi-event training with ablation support
 │   └── export_inference.py            # Pre-compute inference → parquet with thumbnails
 ├── docs/
@@ -83,6 +155,7 @@ multimodal-damage-assessment/
 │   │                                  #   operational pipeline, phase roadmap
 │   ├── BRIGHT_SUMMARY.md              # Dataset summary and key statistics
 │   └── adr/
+│       ├── README.md                  # ADR index
 │       ├── ADR-001-task-framing.md    # Tile classification as stepping stone to segmentation
 │       ├── ADR-002-tile-label-derivation.md  # Area-weighted thresholds + Morocco amendment
 │       ├── ADR-003-validation-strategy.md    # Macro F1 + relative improvement gate
@@ -91,9 +164,6 @@ multimodal-damage-assessment/
 │       └── ADR-006-deployment-and-output.md  # GeoJSON/PNG/SMS output hierarchy
 ├── data/
 │   ├── .cd_cache/                     # Zip central directory caches (committed, ~500 KB)
-│   │   ├── post-event.zip.turkey-earthquake.json
-│   │   ├── pre-event.zip.turkey-earthquake.json
-│   │   └── target.zip.turkey-earthquake.json
 │   └── inference_results.parquet      # Pre-computed predictions + thumbnails (committed)
 ├── outputs/                           # Model checkpoints (.pt — gitignored)
 ├── BRIGHT/                            # BRIGHT benchmark repo (gitignored — clone separately)
@@ -175,7 +245,6 @@ git commit -m "Add pre-computed inference parquet for Streamlit deployment"
 | GeoTIFF I/O | rasterio |
 | Data | NumPy, Pandas, pyarrow (parquet) |
 | Frontend | Streamlit 1.35+, Plotly Graph Objects |
-| Charts | Plotly Express / Graph Objects (dark theme) |
 | Metrics | scikit-learn (F1, confusion matrix) |
 | Download | httpx (async-capable), huggingface_hub |
 | Image processing | Pillow |
