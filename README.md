@@ -1,8 +1,8 @@
 # Multimodal Building Damage Assessment
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Streamlit_Cloud-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://multimodal-damage-assessment-d3dyfacsb2zwiqhtgovrsb.streamlit.app/)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
-[![Streamlit](https://img.shields.io/badge/Dashboard-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit)](https://streamlit.io)
 [![Dataset](https://img.shields.io/badge/Dataset-BRIGHT-00BFFF?style=for-the-badge)](https://huggingface.co/datasets/Kullervo/BRIGHT)
 
 ## Why This Project
