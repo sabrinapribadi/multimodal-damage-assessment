@@ -1,9 +1,9 @@
 PRODUCT REQUIREMENT DOCUMENT (PRD)
 Project: Multimodal Building Damage Assessment — SAR + Optical Fusion with BRIGHT
-Version: 1.5 (Turkey Earthquake Ablation + Streamlit Deployment)
+Version: 2.0 (Phase 1.5 Complete — Turkey + Beirut Ablation)
 Author: Sabrina Pribadi
-Date: June 30, 2026
-Status: Phase 1 Complete — Phase 1.5 In Progress
+Date: July 1, 2026
+Status: Phase 1.5 Complete — Phase 2 Planned
 
 
 1. EXECUTIVE SUMMARY
@@ -461,20 +461,28 @@ Documentation (all achieved):
 - PRD and README in sync with implemented state
 
 
-13. KEY INSIGHTS FROM DATA (Turkey Earthquake — Phase 1)
+13. KEY INSIGHTS FROM DATA
 
+Phase 1 — Turkey Earthquake only:
 - Total tiles (on disk): 1,109 / 1,114 (99.6% complete)
-- Train tiles (after label filtering): 772
-- Val tiles (after label filtering): 112
-- Val label distribution: Intact 74 (66%) / Damaged 6 (5%) / Destroyed 32 (29%)
-- Estimated Destroyed rate: ~29% of labelled tiles — much higher than global BRIGHT avg (6.5%)
-  Turkey 2023 was a catastrophic event; most surveyed tiles have significant destruction
-- Damaged class challenge: only 6 val samples; model F1=0.00 for both modalities
-  This is the primary driver of macro F1 being below the ablation gate
-- SAR signal: +0.017 F1 lift at epoch 5 (best for both models coincide at epoch 5)
-  Destroyed recall = 0.78 (both models) — SAR backscatter loss is learnable even in Phase 1
-- Intact precision = 0.80 (both models) — high false-intact rate on destroyed tiles (R=0.58/0.54)
-  Model is conservative: defaults to Intact when uncertain
+- Train: 772 tiles | Val: 112 tiles | Val distribution: Intact 74 / Damaged 6 / Destroyed 32
+- SAR signal: +0.017 F1 lift (multimodal 0.4091 vs optical 0.3924)
+- Destroyed recall = 0.78 (both models) — SAR backscatter is learnable on homogeneous data
+- Damaged class: 6 val samples, F1=0.00 both models. Primary driver of macro F1 below gate.
+
+Phase 1.5 — Turkey Earthquake + Beirut Explosion:
+- Beirut label distribution: Intact 88.7% / Damaged 6.0% / Destroyed 5.3%
+  (localized port explosion, not widespread earthquake — hypothesis of 15-20% Damaged was wrong)
+- Combined: Train 861 tiles | Val 129 tiles | Test 248 tiles
+- Val distribution: Intact 87 / Damaged 7 / Destroyed 35
+- Multimodal val F1: 0.4207 | Optical-only val F1: 0.4432 | SAR delta: −0.023
+- SAR HURTS on mixed-event data: Intact recall drops from 0.86 (optical) to 0.55 (multimodal)
+  Root cause: Beirut explosion produces different SAR backscatter than earthquake rubble.
+  Water reflections, port debris, and blast patterns cause false alarms on intact buildings.
+- Early stopping fired at epoch 11 for optical-only (best at epoch 6) — saved ~9 epochs
+- Optical-only test F1: 0.4378 — val and test are consistent (no overfitting to val set)
+- Damaged class: 7 val samples, still F1=0.00 for both models
+  Damaged class requires fundamentally different data strategy, not just more events.
 
 
 14. LESSONS LEARNED — PHASE 1
@@ -499,8 +507,17 @@ Documentation (all achieved):
    will amplify it.
 
 5. Pre-computed parquet is the right deployment architecture for a portfolio demo. The
-   dashboard loads a 15 MB file with 5 pure-Python dependencies. Zero inference overhead,
-   no rasterio, no GPU. Any reviewer can run it in under 60 seconds with pip install.
+   dashboard loads from a committed file with 5 pure-Python dependencies. Zero inference
+   overhead, no rasterio, no GPU. Any reviewer can run it in under 60 seconds with pip install.
+
+6. SAR signal is event-dependent, not universal. Phase 1 (single event): +1.7 pp.
+   Phase 1.5 (mixed events): −2.3 pp. The custom CNN cannot generalise SAR features across
+   event types. A pretrained backbone with ImageNet weights as initialisation (Phase 2) is
+   needed before drawing conclusions about SAR utility at scale.
+
+7. Early stopping is essential. Phase 1.5 optimal epoch was 6 out of 20 configured.
+   Without early stopping, 14 epochs (70% of training compute) would be wasted on
+   diverging val F1. Patience=5 is conservative enough to avoid stopping on noise.
 
 
 15. APPENDIX
