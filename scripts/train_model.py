@@ -32,12 +32,14 @@ SPLIT_DIR  = Path("BRIGHT/bda_benchmark/dataset/splitname/standard_ML")
 OUTPUT_DIR = Path("outputs")
 DEVICE     = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
-BATCH_SIZE = 8
-IMAGE_SIZE = 224
-EPOCHS     = 20
-LR         = 1e-3
-PATIENCE   = 5          # early stopping — epochs without val F1 improvement
-GRAD_CLIP  = 1.0        # max gradient norm
+BATCH_SIZE   = 8
+IMAGE_SIZE   = 224
+EPOCHS       = 20
+LR           = 1e-3
+PATIENCE     = 5          # early stopping — epochs without val F1 improvement
+GRAD_CLIP    = 1.0        # max gradient norm
+# Phase 2 (v2 models): backbone fine-tuned at LR×0.1, head at LR
+BACKBONE_LR_SCALE = 0.1
 
 MODEL_TYPE = os.environ.get("MODEL_TYPE", "multimodal")
 
@@ -83,9 +85,9 @@ def make_loader(events: list[str], split: str, shuffle: bool) -> DataLoader:
 def _forward(model, batch):
     optical = batch["images"]["optical"].to(DEVICE)
     sar     = batch["images"]["sar"].to(DEVICE)
-    if MODEL_TYPE == "multimodal":
+    if MODEL_TYPE in ("multimodal", "multimodal_v2"):
         return model(optical, sar)
-    elif MODEL_TYPE == "optical_only":
+    elif MODEL_TYPE in ("optical_only", "optical_only_v2"):
         return model(optical)
     else:
         return model(sar)
@@ -159,7 +161,18 @@ def main():
     print(f"Model : {model.__class__.__name__}  ({sum(p.numel() for p in model.parameters()):,} params)\n")
 
     criterion = nn.CrossEntropyLoss(weight=CLASS_WEIGHTS.to(DEVICE))
-    optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=1e-4)
+
+    # Phase 2 v2 models: backbone fine-tuned at lower LR, head at full LR
+    if hasattr(model, "backbone_params"):
+        optimizer = optim.AdamW([
+            {"params": model.backbone_params(), "lr": LR * BACKBONE_LR_SCALE},
+            {"params": model.head_params(),     "lr": LR},
+        ], weight_decay=1e-4)
+        print(f"Optimizer  : AdamW — backbone LR={LR*BACKBONE_LR_SCALE:.0e}, head LR={LR:.0e}")
+    else:
+        optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=1e-4)
+        print(f"Optimizer  : AdamW — LR={LR:.0e}")
+
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
     best_f1         = 0.0
