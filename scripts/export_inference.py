@@ -6,10 +6,11 @@ includes 64×64 thumbnails (base64 PNG) so the dashboard needs no TIF files
 or model weights at runtime.
 
 Usage:
-    python scripts/export_inference.py
+    python scripts/export_inference.py                                   # default events
+    python scripts/export_inference.py turkey-earthquake beirut-explosion
 
 Output:
-    data/inference_results.parquet  (~10-20 MB, safe to commit)
+    data/inference_results.parquet  (~20-30 MB, safe to commit)
 """
 import base64
 import io
@@ -25,9 +26,9 @@ sys.path.append(".")
 from src.data.brighT_loader import DAMAGE_CLASSES, NUM_CLASSES, BRIGHTDataset
 from src.models.baseline_model import create_model
 
-EVENT      = "turkey-earthquake"
-BASE_DIR   = Path("data/processed") / EVENT
+DEFAULT_EVENTS = ["turkey-earthquake", "beirut-explosion"]
 SPLIT_DIR  = Path("BRIGHT/bda_benchmark/dataset/splitname/standard_ML")
+BASE_DIR   = Path("data/processed")
 OUTPUT_DIR = Path("outputs")
 OUT_FILE   = Path("data/inference_results.parquet")
 IMAGE_SIZE = 224
@@ -36,14 +37,19 @@ DEVICE     = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 DAMAGE_NAMES = [DAMAGE_CLASSES[i] for i in range(NUM_CLASSES)]
 
 
-def _load_model(model_type: str) -> torch.nn.Module:
-    path  = OUTPUT_DIR / f"best_turkey_earthquake_{model_type}.pt"
+def _checkpoint_name(events: list[str]) -> str:
+    return "+".join(e.replace("-", "_") for e in events)
+
+
+def _load_model(model_type: str, events: list[str]) -> torch.nn.Module:
+    run_name = _checkpoint_name(events)
+    path = OUTPUT_DIR / f"best_{run_name}_{model_type}.pt"
     model = create_model(model_type, num_classes=NUM_CLASSES).to(DEVICE)
     if path.exists():
         ckpt = torch.load(path, map_location=DEVICE, weights_only=False)
         model.load_state_dict(ckpt["model_state_dict"])
         f1 = ckpt.get("val_f1", None)
-        print(f"  {model_type}: val F1={f1:.4f}" if f1 else f"  {model_type}: loaded (no F1 stored)")
+        print(f"  {model_type}: {path.name}  val F1={f1:.4f}" if f1 else f"  {model_type}: {path.name}")
     else:
         print(f"  WARNING: {path} not found — using random weights")
     model.eval()
@@ -51,7 +57,6 @@ def _load_model(model_type: str) -> torch.nn.Module:
 
 
 def _thumb_b64(path: Path, n_channels: int) -> str:
-    """Read a TIF, resize to THUMB_SIZE×THUMB_SIZE, return as base64 PNG."""
     from src.data.brighT_loader import _read_tif
     img = _read_tif(path, n_channels=n_channels).resize(
         (THUMB_SIZE, THUMB_SIZE), Image.LANCZOS
@@ -70,56 +75,68 @@ def _infer(model: torch.nn.Module, sample: dict, model_type: str) -> np.ndarray:
 
 
 def main():
-    print(f"Device: {DEVICE}")
+    events = sys.argv[1:] if len(sys.argv) > 1 else DEFAULT_EVENTS
+    print(f"Device : {DEVICE}")
+    print(f"Events : {events}")
     print("Loading models ...")
-    model_mm  = _load_model("multimodal")
-    model_opt = _load_model("optical_only")
+    model_mm  = _load_model("multimodal",  events)
+    model_opt = _load_model("optical_only", events)
 
     records = []
-    for split in ["train", "val"]:
+    for split in ["train", "val", "test"]:
         split_file = SPLIT_DIR / f"{split}_set.txt"
         if not split_file.exists():
             print(f"\n  Skipping {split}: {split_file} not found")
             continue
 
-        print(f"\n{split} split ...")
-        ds = BRIGHTDataset(
-            data_dir=BASE_DIR,
-            split_file=split_file,
-            event=EVENT,
-            image_size=IMAGE_SIZE,
-            synthetic_fallback=False,
-        )
-        print(f"  {len(ds)} tiles")
+        for event in events:
+            data_dir = BASE_DIR / event
+            if not data_dir.exists():
+                print(f"\n  Skipping {event}/{split}: data directory not found")
+                continue
 
-        for i, s in enumerate(ds.samples):
-            sample   = ds[i]
-            true_lbl = sample["label"].item()
+            ds = BRIGHTDataset(
+                data_dir=data_dir,
+                split_file=split_file,
+                event=event,
+                image_size=IMAGE_SIZE,
+                synthetic_fallback=False,
+            )
+            if len(ds) == 0:
+                print(f"\n  Skipping {event}/{split}: no tiles found")
+                continue
 
-            probs_mm  = _infer(model_mm,  sample, "multimodal")
-            probs_opt = _infer(model_opt, sample, "optical_only")
+            print(f"\n{split} / {event}  ({len(ds)} tiles) ...")
 
-            records.append({
-                "tile_id":            s["tile_id"],
-                "split":              split,
-                "true_label":         true_lbl,
-                "true_label_name":    DAMAGE_NAMES[true_lbl],
-                "pred_multimodal":    int(probs_mm.argmax()),
-                "pred_optical":       int(probs_opt.argmax()),
-                "conf_mm_intact":     float(probs_mm[0]),
-                "conf_mm_damaged":    float(probs_mm[1]),
-                "conf_mm_destroyed":  float(probs_mm[2]),
-                "conf_opt_intact":    float(probs_opt[0]),
-                "conf_opt_damaged":   float(probs_opt[1]),
-                "conf_opt_destroyed": float(probs_opt[2]),
-                "optical_thumb":      _thumb_b64(s["pre_path"],  n_channels=3),
-                "sar_thumb":          _thumb_b64(s["post_path"], n_channels=1),
-            })
+            for i, s in enumerate(ds.samples):
+                sample   = ds[i]
+                true_lbl = sample["label"].item()
 
-            if (i + 1) % 25 == 0:
-                print(f"  {i+1}/{len(ds)}", end="\r", flush=True)
+                probs_mm  = _infer(model_mm,  sample, "multimodal")
+                probs_opt = _infer(model_opt, sample, "optical_only")
 
-        print(f"  {len(ds)}/{len(ds)} done")
+                records.append({
+                    "tile_id":            s["tile_id"],
+                    "event":              event,
+                    "split":              split,
+                    "true_label":         true_lbl,
+                    "true_label_name":    DAMAGE_NAMES[true_lbl],
+                    "pred_multimodal":    int(probs_mm.argmax()),
+                    "pred_optical":       int(probs_opt.argmax()),
+                    "conf_mm_intact":     float(probs_mm[0]),
+                    "conf_mm_damaged":    float(probs_mm[1]),
+                    "conf_mm_destroyed":  float(probs_mm[2]),
+                    "conf_opt_intact":    float(probs_opt[0]),
+                    "conf_opt_damaged":   float(probs_opt[1]),
+                    "conf_opt_destroyed": float(probs_opt[2]),
+                    "optical_thumb":      _thumb_b64(s["pre_path"],  n_channels=3),
+                    "sar_thumb":          _thumb_b64(s["post_path"], n_channels=1),
+                })
+
+                if (i + 1) % 25 == 0:
+                    print(f"  {i+1}/{len(ds)}", end="\r", flush=True)
+
+            print(f"  {len(ds)}/{len(ds)} done")
 
     df = pd.DataFrame(records)
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -127,10 +144,14 @@ def main():
     mb = OUT_FILE.stat().st_size / 1e6
     print(f"\nSaved {len(df)} tiles → {OUT_FILE}  ({mb:.1f} MB)")
 
-    val = df[df["split"] == "val"]
-    for col, name in [("pred_multimodal", "multimodal"), ("pred_optical", "optical_only")]:
-        acc = (val[col] == val["true_label"]).mean()
-        print(f"  {name} val accuracy: {acc:.3f}")
+    for split_name in ["val", "test"]:
+        split_df = df[df["split"] == split_name]
+        if split_df.empty:
+            continue
+        print(f"\n{split_name} summary ({len(split_df)} tiles):")
+        for col, name in [("pred_multimodal", "multimodal"), ("pred_optical", "optical_only")]:
+            acc = (split_df[col] == split_df["true_label"]).mean()
+            print(f"  {name} accuracy: {acc:.3f}")
 
 
 if __name__ == "__main__":
