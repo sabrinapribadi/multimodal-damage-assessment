@@ -18,6 +18,7 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from sklearn.metrics import classification_report, f1_score
 from torch.utils.data import ConcatDataset, DataLoader
@@ -26,20 +27,51 @@ sys.path.append(".")
 from src.data.brighT_loader import DAMAGE_CLASSES, NUM_CLASSES, BRIGHTDataset
 from src.models.baseline_model import create_model
 
+
+# ── Lovász-Softmax loss ───────────────────────────────────────────────────────
+
+def _lovasz_grad(gt_sorted: torch.Tensor) -> torch.Tensor:
+    """Lovász extension gradient for binary IoU."""
+    p = gt_sorted.shape[0]
+    gts = gt_sorted.sum()
+    intersection = gts - gt_sorted.float().cumsum(0)
+    union = gts + (1 - gt_sorted).float().cumsum(0)
+    jaccard = 1.0 - intersection / union
+    if p > 1:
+        jaccard[1:] = jaccard[1:] - jaccard[:-1]
+    return jaccard
+
+
+def lovasz_softmax_loss(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    """
+    Lovász-Softmax surrogate IoU loss for multi-class classification.
+    Averages over classes present in the batch — forces the model to improve
+    on whichever class has the worst IoU, directly addressing the Damaged class gap.
+    """
+    probas = F.softmax(logits, dim=1)
+    losses = []
+    for c in torch.unique(labels).tolist():
+        fg = (labels == c).float()
+        errors = (fg - probas[:, c]).abs()
+        errors_sorted, perm = torch.sort(errors, descending=True)
+        fg_sorted = fg[perm]
+        losses.append(torch.dot(errors_sorted, _lovasz_grad(fg_sorted)))
+    return torch.stack(losses).mean() if losses else logits.sum() * 0.0
+
 # ── Config ────────────────────────────────────────────────────────────────────
 BASE_DIR   = Path("data/processed")
 SPLIT_DIR  = Path("BRIGHT/bda_benchmark/dataset/splitname/standard_ML")
 OUTPUT_DIR = Path("outputs")
 DEVICE     = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
-BATCH_SIZE   = 8
-IMAGE_SIZE   = 224
-EPOCHS       = 20
-LR           = 1e-3
-PATIENCE     = 5          # early stopping — epochs without val F1 improvement
-GRAD_CLIP    = 1.0        # max gradient norm
-# Phase 2 (v2 models): backbone fine-tuned at LR×0.1, head at LR
-BACKBONE_LR_SCALE = 0.1
+BATCH_SIZE        = 8
+IMAGE_SIZE        = 224
+EPOCHS            = 25
+LR                = 1e-3
+PATIENCE          = 7          # early stopping — epochs without val F1 improvement
+GRAD_CLIP         = 1.0        # max gradient norm
+BACKBONE_LR_SCALE = 0.1        # backbone fine-tuned at LR×0.1, head at LR
+FREEZE_EPOCHS     = 5          # Phase 3: train head only for first N epochs, then unfreeze backbone
 
 MODEL_TYPE = os.environ.get("MODEL_TYPE", "multimodal")
 
@@ -50,7 +82,7 @@ DEFAULT_EVENTS = ["turkey-earthquake"]
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def make_loader(events: list[str], split: str, shuffle: bool) -> DataLoader:
+def make_loader(events: list[str], split: str, shuffle: bool, augment: bool = False) -> DataLoader:
     datasets = []
     for event in events:
         data_dir = BASE_DIR / event
@@ -63,6 +95,7 @@ def make_loader(events: list[str], split: str, shuffle: bool) -> DataLoader:
             event=event,
             image_size=IMAGE_SIZE,
             synthetic_fallback=False,
+            augment=augment,
         )
         if len(ds) > 0:
             datasets.append(ds)
@@ -85,15 +118,15 @@ def make_loader(events: list[str], split: str, shuffle: bool) -> DataLoader:
 def _forward(model, batch):
     optical = batch["images"]["optical"].to(DEVICE)
     sar     = batch["images"]["sar"].to(DEVICE)
-    if MODEL_TYPE in ("multimodal", "multimodal_v2"):
+    if MODEL_TYPE in ("multimodal", "multimodal_v2", "multimodal_v3"):
         return model(optical, sar)
-    elif MODEL_TYPE in ("optical_only", "optical_only_v2"):
+    elif MODEL_TYPE in ("optical_only", "optical_only_v2", "optical_only_v3"):
         return model(optical)
     else:
         return model(sar)
 
 
-def train_epoch(model, loader, criterion, optimizer):
+def train_epoch(model, loader, criterion, optimizer, use_lovasz: bool = False):
     model.train()
     total_loss = total_correct = total_samples = 0
 
@@ -102,6 +135,8 @@ def train_epoch(model, loader, criterion, optimizer):
         optimizer.zero_grad()
         logits = _forward(model, batch)
         loss   = criterion(logits, labels)
+        if use_lovasz:
+            loss = loss + lovasz_softmax_loss(logits, labels)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=GRAD_CLIP)
         optimizer.step()
@@ -145,15 +180,20 @@ def main():
     run_name = "+".join(e.replace("-", "_") for e in events)
 
     OUTPUT_DIR.mkdir(exist_ok=True)
+    is_v3 = MODEL_TYPE.endswith("_v3")
+
     print(f"Device     : {DEVICE}")
     print(f"Events     : {events}")
     print(f"Model type : {MODEL_TYPE}")
     print(f"Early stop : patience={PATIENCE} epochs")
-    print(f"Grad clip  : max_norm={GRAD_CLIP}\n")
+    print(f"Grad clip  : max_norm={GRAD_CLIP}")
+    if is_v3:
+        print(f"Phase 3    : augment ON | freeze {FREEZE_EPOCHS} ep | optical-gated SAR α | CE + Lovász loss")
+    print()
 
     print("Loading datasets ...")
-    train_loader = make_loader(events, "train", shuffle=True)
-    val_loader   = make_loader(events, "val",   shuffle=False)
+    train_loader = make_loader(events, "train", shuffle=True,  augment=is_v3)
+    val_loader   = make_loader(events, "val",   shuffle=False, augment=False)
     print(f"\nTrain total: {len(train_loader.dataset)} tiles")
     print(f"Val   total: {len(val_loader.dataset)} tiles\n")
 
@@ -162,8 +202,15 @@ def main():
 
     criterion = nn.CrossEntropyLoss(weight=CLASS_WEIGHTS.to(DEVICE))
 
-    # Phase 2 v2 models: backbone fine-tuned at lower LR, head at full LR
-    if hasattr(model, "backbone_params"):
+    # Phase 3 v3: freeze backbone, train head only for FREEZE_EPOCHS, then unfreeze
+    backbone_frozen = False
+    if is_v3 and hasattr(model, "backbone_params"):
+        for p in model.backbone_params():
+            p.requires_grad = False
+        backbone_frozen = True
+        optimizer = optim.AdamW(model.head_params(), lr=LR, weight_decay=1e-4)
+        print(f"Optimizer  : AdamW — head-only LR={LR:.0e} (backbone frozen for {FREEZE_EPOCHS} epochs)")
+    elif hasattr(model, "backbone_params"):
         optimizer = optim.AdamW([
             {"params": model.backbone_params(), "lr": LR * BACKBONE_LR_SCALE},
             {"params": model.head_params(),     "lr": LR},
@@ -175,8 +222,8 @@ def main():
 
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
-    best_f1         = 0.0
-    best_path       = OUTPUT_DIR / f"best_{run_name}_{MODEL_TYPE}.pt"
+    best_f1          = 0.0
+    best_path        = OUTPUT_DIR / f"best_{run_name}_{MODEL_TYPE}.pt"
     patience_counter = 0
 
     header = (f"{'Epoch':>5}  {'TrLoss':>8}  {'TrAcc':>7}  "
@@ -186,8 +233,23 @@ def main():
     print("-" * len(header))
 
     for epoch in range(1, EPOCHS + 1):
+        # Phase 3: unfreeze backbone after FREEZE_EPOCHS, rebuild optimizer + scheduler
+        if backbone_frozen and epoch == FREEZE_EPOCHS + 1:
+            for p in model.backbone_params():
+                p.requires_grad = True
+            backbone_frozen = False
+            optimizer = optim.AdamW([
+                {"params": model.backbone_params(), "lr": LR * BACKBONE_LR_SCALE},
+                {"params": model.head_params(),     "lr": LR},
+            ], weight_decay=1e-4)
+            scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=EPOCHS - FREEZE_EPOCHS
+            )
+            patience_counter = 0  # reset — give unfrozen model time to settle
+            print(f"\nEpoch {epoch}: backbone unfrozen — backbone LR={LR*BACKBONE_LR_SCALE:.0e}, head LR={LR:.0e}\n")
+
         t0 = time.time()
-        tr_loss, tr_acc                          = train_epoch(model, train_loader, criterion, optimizer)
+        tr_loss, tr_acc                          = train_epoch(model, train_loader, criterion, optimizer, use_lovasz=is_v3)
         vl_loss, vl_acc, vl_f1, pc_f1, _, _     = eval_epoch(model, val_loader,   criterion)
         scheduler.step()
 

@@ -70,7 +70,7 @@ def _thumb_b64(path: Path, n_channels: int) -> str:
 def _infer(model: torch.nn.Module, sample: dict, model_type: str) -> np.ndarray:
     optical = sample["images"]["optical"].unsqueeze(0).to(DEVICE)
     sar     = sample["images"]["sar"].unsqueeze(0).to(DEVICE)
-    is_mm = model_type in ("multimodal", "multimodal_v2")
+    is_mm = model_type in ("multimodal", "multimodal_v2", "multimodal_v3")
     logits  = model(optical, sar) if is_mm else model(optical)
     return torch.softmax(logits, dim=1)[0].cpu().numpy()
 
@@ -80,8 +80,8 @@ def main():
     print(f"Device : {DEVICE}")
     print(f"Events : {events}")
     print("Loading models ...")
-    model_mm  = _load_model("multimodal_v2",  events)
-    model_opt = _load_model("optical_only_v2", events)
+    model_mm  = _load_model("multimodal_v3",  events)
+    model_opt = _load_model("optical_only_v3", events)
 
     records = []
     for split in ["train", "val", "test"]:
@@ -113,8 +113,8 @@ def main():
                 sample   = ds[i]
                 true_lbl = sample["label"].item()
 
-                probs_mm  = _infer(model_mm,  sample, "multimodal_v2")
-                probs_opt = _infer(model_opt, sample, "optical_only_v2")
+                probs_mm  = _infer(model_mm,  sample, "multimodal_v3")
+                probs_opt = _infer(model_opt, sample, "optical_only_v3")
 
                 records.append({
                     "tile_id":            s["tile_id"],

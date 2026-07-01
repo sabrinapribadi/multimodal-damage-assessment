@@ -10,11 +10,13 @@ Tile-level label = max non-background damage class in the mask.
 Output classes (num_classes=3): 0=Intact, 1=Damaged, 2=Destroyed.
 """
 import logging
+import random
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import numpy as np
 import torch
+import torchvision.transforms.functional as TF
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
@@ -86,6 +88,24 @@ def _read_mask(path: Path) -> np.ndarray:
         return arr.astype(np.uint8)
 
 
+def _augment_pair(optical: Image.Image, sar: Image.Image) -> tuple[Image.Image, Image.Image]:
+    """
+    Apply identical spatial transforms to both modalities; colour jitter to optical only.
+    Co-registration must be preserved — both images get the same flip/rotation.
+    """
+    if random.random() > 0.5:
+        optical, sar = TF.hflip(optical), TF.hflip(sar)
+    if random.random() > 0.5:
+        optical, sar = TF.vflip(optical), TF.vflip(sar)
+    angle = random.uniform(-15.0, 15.0)
+    optical = TF.rotate(optical, angle)
+    sar     = TF.rotate(sar,     angle)
+    # Optical-only: colour jitter (SAR intensity is physically calibrated — don't perturb)
+    optical = TF.adjust_brightness(optical, random.uniform(0.8, 1.2))
+    optical = TF.adjust_contrast(optical,   random.uniform(0.8, 1.2))
+    return optical, sar
+
+
 def _derive_tile_label(mask: np.ndarray,
                         destroyed_thresh: float = 0.01,
                         damaged_thresh: float = 0.05,
@@ -139,9 +159,11 @@ class BRIGHTDataset(Dataset):
         event: Optional[str] = None,
         image_size: int = 224,
         synthetic_fallback: bool = True,
+        augment: bool = False,
     ):
         self.data_dir = Path(data_dir)
         self.image_size = image_size
+        self.augment = augment
 
         self.optical_tf = transforms.Compose([
             transforms.Resize((image_size, image_size)),
@@ -218,8 +240,12 @@ class BRIGHTDataset(Dataset):
     def __getitem__(self, idx):
         s = self.samples[idx]
         if s["pre_path"] is not None:
-            optical = self.optical_tf(_read_tif(s["pre_path"],  n_channels=3))
-            sar     = self.sar_tf(    _read_tif(s["post_path"], n_channels=1))
+            optical_pil = _read_tif(s["pre_path"],  n_channels=3)
+            sar_pil     = _read_tif(s["post_path"], n_channels=1)
+            if self.augment:
+                optical_pil, sar_pil = _augment_pair(optical_pil, sar_pil)
+            optical = self.optical_tf(optical_pil)
+            sar     = self.sar_tf(sar_pil)
         else:
             optical = torch.randn(3, self.image_size, self.image_size)
             sar     = torch.randn(1, self.image_size, self.image_size)
