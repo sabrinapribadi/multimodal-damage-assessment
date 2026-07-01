@@ -42,6 +42,23 @@ def _lovasz_grad(gt_sorted: torch.Tensor) -> torch.Tensor:
     return jaccard
 
 
+def soft_cross_entropy_loss(
+    logits: torch.Tensor,
+    soft_labels: torch.Tensor,
+    weight: torch.Tensor,
+) -> torch.Tensor:
+    """
+    Weighted soft cross-entropy loss.
+    soft_labels: (B, C) float in [0, 1], summing to 1 per sample (pixel-fraction distribution).
+    weight: (C,) per-class weight — each sample's weight is the expected class weight
+            under its soft label distribution, preserving minority-class emphasis.
+    """
+    log_probs      = F.log_softmax(logits, dim=1)          # (B, C)
+    nll            = -(soft_labels * log_probs).sum(dim=1)  # (B,)
+    sample_weights = (soft_labels * weight.unsqueeze(0)).sum(dim=1)  # (B,)
+    return (nll * sample_weights).sum() / sample_weights.sum().clamp(min=1e-9)
+
+
 def lovasz_softmax_loss(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
     """
     Lovász-Softmax surrogate IoU loss for multi-class classification.
@@ -70,15 +87,16 @@ EPOCHS            = 25
 LR                = 1e-3
 PATIENCE          = 7          # early stopping — epochs without val F1 improvement
 GRAD_CLIP         = 1.0        # max gradient norm
-BACKBONE_LR_SCALE = 0.1        # backbone fine-tuned at LR×0.1, head at LR
-FREEZE_EPOCHS     = 5          # Phase 3: train head only for first N epochs, then unfreeze backbone
+BACKBONE_LR_SCALE = 0.05       # backbone fine-tuned at LR×0.05, head at LR (conservative)
+FREEZE_EPOCHS     = 8          # train head only for first N epochs; longer gives head time to stabilise
 
 MODEL_TYPE = os.environ.get("MODEL_TYPE", "multimodal")
 
 CLASS_WEIGHTS = torch.tensor([1.0, 5.0, 10.0], dtype=torch.float)
 CLASS_NAMES   = [DAMAGE_CLASSES[i] for i in range(NUM_CLASSES)]
 
-DEFAULT_EVENTS = ["turkey-earthquake"]
+DEFAULT_EVENTS  = ["turkey-earthquake", "noto-earthquake"]
+USE_SOFT_LABELS = True   # pixel-distribution soft targets for v3+ models
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -126,17 +144,29 @@ def _forward(model, batch):
         return model(sar)
 
 
-def train_epoch(model, loader, criterion, optimizer, use_lovasz: bool = False):
+def train_epoch(
+    model, loader, criterion, optimizer,
+    use_lovasz: bool = False,
+    use_soft_labels: bool = False,
+):
     model.train()
     total_loss = total_correct = total_samples = 0
+    w = CLASS_WEIGHTS.to(DEVICE)
 
     for batch in loader:
         labels = batch["label"].to(DEVICE)
         optimizer.zero_grad()
         logits = _forward(model, batch)
-        loss   = criterion(logits, labels)
+
+        if use_soft_labels and "soft_label" in batch:
+            soft_labels = batch["soft_label"].to(DEVICE)
+            loss = soft_cross_entropy_loss(logits, soft_labels, w)
+        else:
+            loss = criterion(logits, labels)
+
         if use_lovasz:
             loss = loss + lovasz_softmax_loss(logits, labels)
+
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=GRAD_CLIP)
         optimizer.step()
@@ -187,8 +217,10 @@ def main():
     print(f"Model type : {MODEL_TYPE}")
     print(f"Early stop : patience={PATIENCE} epochs")
     print(f"Grad clip  : max_norm={GRAD_CLIP}")
+    use_sl = is_v3 and USE_SOFT_LABELS
     if is_v3:
-        print(f"Phase 3    : augment ON | freeze {FREEZE_EPOCHS} ep | optical-gated SAR α | CE + Lovász loss")
+        sl_tag = "soft-CE + Lovász" if use_sl else "CE + Lovász"
+        print(f"Phase 3    : augment ON | freeze {FREEZE_EPOCHS} ep (no patience reset) | backbone LR×{BACKBONE_LR_SCALE} | optical-gated SAR α | {sl_tag}")
     print()
 
     print("Loading datasets ...")
@@ -245,11 +277,11 @@ def main():
             scheduler = optim.lr_scheduler.CosineAnnealingLR(
                 optimizer, T_max=EPOCHS - FREEZE_EPOCHS
             )
-            patience_counter = 0  # reset — give unfrozen model time to settle
+            patience_counter = 0  # fresh start — frozen-phase stagnation doesn't count
             print(f"\nEpoch {epoch}: backbone unfrozen — backbone LR={LR*BACKBONE_LR_SCALE:.0e}, head LR={LR:.0e}\n")
 
         t0 = time.time()
-        tr_loss, tr_acc                          = train_epoch(model, train_loader, criterion, optimizer, use_lovasz=is_v3)
+        tr_loss, tr_acc                          = train_epoch(model, train_loader, criterion, optimizer, use_lovasz=is_v3, use_soft_labels=use_sl)
         vl_loss, vl_acc, vl_f1, pc_f1, _, _     = eval_epoch(model, val_loader,   criterion)
         scheduler.step()
 
@@ -264,8 +296,10 @@ def main():
                 "val_per_class_f1": pc_f1.tolist(),
                 "events": events, "model_type": MODEL_TYPE, "num_classes": NUM_CLASSES,
             }, best_path)
-            flag = "  ✓"
-        else:
+            flag = "  [best]"
+        elif not backbone_frozen:
+            # Only count patience after the backbone is unfrozen — frozen epochs have
+            # no backbone gradient signal, so stagnation there is expected, not a stopping signal.
             patience_counter += 1
             if patience_counter >= PATIENCE:
                 print(

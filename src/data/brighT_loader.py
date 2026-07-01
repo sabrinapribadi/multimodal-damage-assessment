@@ -106,6 +106,23 @@ def _augment_pair(optical: Image.Image, sar: Image.Image) -> tuple[Image.Image, 
     return optical, sar
 
 
+def _derive_soft_label(mask: np.ndarray, min_building_px: int = 200) -> Optional[np.ndarray]:
+    """
+    Returns pixel-fraction soft label [p_intact, p_damaged, p_destroyed] or None if sparse.
+    Uses actual per-pixel distribution instead of majority vote — gives richer signal
+    for mixed tiles (e.g. 60% intact / 40% damaged → [0.6, 0.4, 0.0] instead of hard Intact).
+    BRIGHT mask: 0=background, 1=intact, 2=damaged, 3=destroyed → classes 0, 1, 2.
+    """
+    n_building = int((mask > 0).sum())
+    if n_building < min_building_px:
+        return None
+    return np.array([
+        float((mask == 1).sum()) / n_building,
+        float((mask == 2).sum()) / n_building,
+        float((mask == 3).sum()) / n_building,
+    ], dtype=np.float32)
+
+
 def _derive_tile_label(mask: np.ndarray,
                         destroyed_thresh: float = 0.01,
                         damaged_thresh: float = 0.05,
@@ -210,15 +227,17 @@ class BRIGHTDataset(Dataset):
             except Exception as e:
                 logger.warning("Skipping corrupt tile %s: %s", tile_id, e)
                 continue
-            label = _derive_tile_label(mask)
-            if label is None:
+            label      = _derive_tile_label(mask)
+            soft_label = _derive_soft_label(mask)
+            if label is None or soft_label is None:
                 continue  # skip all-background tiles
 
             samples.append({
-                "tile_id":  tile_id,
-                "pre_path": pre,
-                "post_path": post,
-                "label":    label,
+                "tile_id":    tile_id,
+                "pre_path":   pre,
+                "post_path":  post,
+                "label":      label,
+                "soft_label": soft_label,
             })
 
         if not samples:
@@ -230,7 +249,13 @@ class BRIGHTDataset(Dataset):
     def _synthetic_samples(self, n: int):
         """Dummy samples — returns placeholder tensors so training loop runs without real data."""
         return [
-            {"tile_id": f"synth_{i:04d}", "pre_path": None, "post_path": None, "label": i % NUM_CLASSES}
+            {
+                "tile_id":    f"synth_{i:04d}",
+                "pre_path":   None,
+                "post_path":  None,
+                "label":      i % NUM_CLASSES,
+                "soft_label": np.full(NUM_CLASSES, 1.0 / NUM_CLASSES, dtype=np.float32),
+            }
             for i in range(n)
         ]
 
@@ -251,9 +276,10 @@ class BRIGHTDataset(Dataset):
             sar     = torch.randn(1, self.image_size, self.image_size)
 
         return {
-            "tile_id": s["tile_id"],
-            "images":  {"optical": optical, "sar": sar},
-            "label":   torch.tensor(s["label"], dtype=torch.long),
+            "tile_id":    s["tile_id"],
+            "images":     {"optical": optical, "sar": sar},
+            "label":      torch.tensor(s["label"],      dtype=torch.long),
+            "soft_label": torch.tensor(s["soft_label"], dtype=torch.float32),
         }
 
 
