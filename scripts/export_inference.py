@@ -26,7 +26,7 @@ sys.path.append(".")
 from src.data.brighT_loader import DAMAGE_CLASSES, NUM_CLASSES, BRIGHTDataset
 from src.models.baseline_model import create_model
 
-DEFAULT_EVENTS = ["turkey-earthquake", "beirut-explosion"]
+DEFAULT_EVENTS = ["turkey-earthquake", "noto-earthquake"]
 SPLIT_DIR  = Path("BRIGHT/bda_benchmark/dataset/splitname/standard_ML")
 BASE_DIR   = Path("data/processed")
 OUTPUT_DIR = Path("outputs")
@@ -70,7 +70,8 @@ def _thumb_b64(path: Path, n_channels: int) -> str:
 def _infer(model: torch.nn.Module, sample: dict, model_type: str) -> np.ndarray:
     optical = sample["images"]["optical"].unsqueeze(0).to(DEVICE)
     sar     = sample["images"]["sar"].unsqueeze(0).to(DEVICE)
-    logits  = model(optical, sar) if model_type == "multimodal" else model(optical)
+    is_mm = model_type in ("multimodal", "multimodal_v2")
+    logits  = model(optical, sar) if is_mm else model(optical)
     return torch.softmax(logits, dim=1)[0].cpu().numpy()
 
 
@@ -79,8 +80,8 @@ def main():
     print(f"Device : {DEVICE}")
     print(f"Events : {events}")
     print("Loading models ...")
-    model_mm  = _load_model("multimodal",  events)
-    model_opt = _load_model("optical_only", events)
+    model_mm  = _load_model("multimodal_v2",  events)
+    model_opt = _load_model("optical_only_v2", events)
 
     records = []
     for split in ["train", "val", "test"]:
@@ -112,8 +113,8 @@ def main():
                 sample   = ds[i]
                 true_lbl = sample["label"].item()
 
-                probs_mm  = _infer(model_mm,  sample, "multimodal")
-                probs_opt = _infer(model_opt, sample, "optical_only")
+                probs_mm  = _infer(model_mm,  sample, "multimodal_v2")
+                probs_opt = _infer(model_opt, sample, "optical_only_v2")
 
                 records.append({
                     "tile_id":            s["tile_id"],
