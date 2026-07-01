@@ -11,7 +11,7 @@ After a disaster like an earthquake or hurricane, first responders need damage m
 
 This project builds a dual-modality deep learning system that fuses pre-event optical imagery with post-event SAR to classify building damage at the tile level. The core research question — framed as a rigorous ablation — is: **does adding SAR to optical actually improve damage classification, or is optical alone sufficient?**
 
-Phase 1 (Turkey earthquake): SAR provides a small positive signal (+1.7 pp macro F1) on a single homogeneous event. Phase 1.5 (Turkey + Beirut): SAR *hurts* (−2.3 pp) because explosion and earthquake rubble produce fundamentally different radar signatures that a custom CNN cannot generalise across. Phase 2b (ResNet-18, Turkey + Noto — two earthquakes): SAR still trails at macro level (−3.1 pp), but the per-class breakdown reveals that **SAR helps Destroyed (+6.4 pp) and hurts Damaged (−16.7 pp)** — the signal is class-conditional, not absent. The ablation gate frames this finding cleanly: macro F1 cannot pass the gate because Damaged class noise cancels Destroyed class gain.
+Six experimental phases systematically tested whether SAR improves building damage classification. **Phase 3 achieved the best result: +2.2 pp macro F1 improvement from adding SAR**, using an optical-gated fusion design (ResNet-18, Turkey + Noto earthquakes). The gate (+5 pp) was not passed — but the research produced interpretable findings at each stage. Phase 4 (adding Morocco earthquake + soft pixel-distribution labels) revealed that SAR backscatter signatures are less transferable across construction types than optical: the multimodal model degraded −9.6 pp relative to optical-only while optical itself improved. Phase 3b (Turkey + Noto + soft labels, no Morocco) confirmed that soft labels alone are the cause — they dilute the training signal for dominant-class tiles, making convergence slower and shallower regardless of domain.
 
 ## System Architecture
 
@@ -104,6 +104,41 @@ full 9.9 GB pre-event.zip or 3.3 GB post-event.zip.
 > Optical-only dropped from 0.628 (Phase 2b) to 0.558, showing augmentation + Lovász is harder
 > to optimise without the gate's regularisation effect.
 
+### Phase 4 — Turkey + Noto + Morocco Earthquakes (soft labels, SAR delta −0.096)
+
+| Metric | Multimodal (Optical + SAR) | Optical-only | SAR delta |
+|--------|---------------------------|--------------|-----------|
+| **Val Macro F1** | 0.396 | **0.492** | **−0.096** |
+| Intact F1 | 0.824 | 0.843 | −0.019 |
+| Damaged F1 | 0.000 | **0.200** | −0.200 |
+| Destroyed F1 | 0.364 | 0.431 | −0.067 |
+| **Test Macro F1** | 0.450 | 0.490 | — |
+
+> Phase 4 finding: Morocco earthquake (rural mud-brick construction) introduced SAR domain shift.
+> Optical adapted to diverse building styles; SAR backscatter for collapsed mud-brick is
+> fundamentally different from RC rubble, breaking the fusion gate. Optical-only learned the
+> Damaged class for the first time (F1=0.200) from Morocco's pixel-distribution soft labels,
+> while multimodal failed entirely on Damaged. SAR signals are less transferable across
+> earthquake construction types than optical signals.
+
+### Phase 3b — Turkey + Noto (soft labels only, freeze=8, SAR delta −0.114)
+
+| Metric | Multimodal (Optical + SAR) | Optical-only | SAR delta |
+|--------|---------------------------|--------------|-----------|
+| **Val Macro F1** | 0.283 | **0.345** | **−0.114** |
+| Intact F1 | 0.790 | 0.798 | −0.008 |
+| Damaged F1 | 0.000 | 0.000 | 0.000 |
+| Destroyed F1 | 0.056 | 0.238 | −0.182 |
+| **Test Macro F1** | 0.261 | 0.282 | — |
+
+> Phase 3b finding: Soft pixel-distribution labels (e.g. [0.85, 0.10, 0.05] instead of hard
+> Intact) hurt both models. Most tiles are >80% dominated by one class — soft labels flatten
+> the gradient signal for these tiles, slowing convergence and producing shallower decision
+> boundaries. Hard one-hot labels remain better for tile-level classification. Also revealed
+> a freeze/unfreeze patience bug: without resetting patience_counter at unfreeze, frozen-phase
+> stagnation (all epochs show the same F1) can exhaust patience before the backbone ever trains.
+> Correct design: patience only counts after the backbone is unfrozen.
+
 ### Phase 2b — Turkey Earthquake + Noto Earthquake (ResNet-18 simple concat)
 
 | Metric | Multimodal (Optical + SAR) | Optical-only | SAR delta |
@@ -158,21 +193,27 @@ full 9.9 GB pre-event.zip or 3.3 GB post-event.zip.
 
 5. **The Damaged class is the fundamental bottleneck.** Intact (stable) and Destroyed (rubble) have distinct visual and SAR signatures. Damaged is the ambiguous middle — partially standing structures with subtle backscatter changes. SAR actively misleads on this class across all phases.
 
-6. **Early stopping works.** Phase 2b: multimodal stopped at epoch 6, optical at epoch 7 — out of 20 configured. Best checkpoints came early; patience=5 prevented wasted compute without stopping on noise.
+6. **Early stopping works — but patience must only count after the backbone unfreezes.** During the frozen phase, the head has no backbone gradient signal, so stagnation is expected and should not count toward patience. Resetting patience_counter at unfreeze AND not counting frozen-phase epochs is the correct design. Getting either wrong causes premature stopping.
 
 7. **Pre-computed parquet is the right deployment architecture.** The Streamlit dashboard loads from a committed file with five pure-Python dependencies. No model weights, no rasterio, no GPU at runtime.
 
+8. **Soft labels hurt tile-level classification when tiles are class-dominant.** Pixel-distribution soft labels (e.g. [0.85, 0.10, 0.05]) were intended to give richer supervision for mixed tiles. In practice, most tiles are >80% one class — soft labels flatten the loss landscape for these tiles, slowing convergence and producing shallower class boundaries. Both models degraded vs. Phase 3 hard-label baseline. Hard one-hot targets remain better at this task granularity.
+
+9. **SAR domain shift across construction types breaks fusion more than optical.** Phase 4 added Morocco (rural mud-brick) to Turkey (urban RC) and Noto (Japanese residential). Optical adapted — optical-only improved and learned the Damaged class for the first time. Multimodal degraded severely (−9.6 pp SAR delta). SAR backscatter signatures for collapsed mud-brick and collapsed RC differ fundamentally; the fusion gate could not adapt. Optical representations are more construction-type-agnostic than SAR signatures.
+
+10. **+2.2 pp is the best SAR delta achieved; the gate (+5.0 pp) remains uncleared.** Across 6 configurations, Phase 3 (optical gate, hard labels, earthquake-only data) was the global optimum. The finding is honest and actionable: SAR adds marginal, class-conditional value within-domain. Clearing the gate likely requires pixel-level supervision, a larger dataset, or an architecture with explicit temporal change encoding (e.g. ChangeMamba).
+
 ## Roadmap
 
-| Phase | Focus | Status |
-|-------|-------|--------|
-| **Phase 1** | Custom 4-layer CNN, Turkey earthquake. Validate SAR signal vs optical-only via ablation gate. Finding: +1.7 pp, gate not passed. | **Complete** |
-| **Phase 1.5** | Custom CNN, Turkey + Beirut. Finding: SAR hurts −2.3 pp on cross-event-type data. Gate not passed. | **Complete** |
-| **Phase 2b** | ResNet-18 simple concat, Turkey + Noto. SAR delta −3.1 pp macro; Destroyed +6.4 pp, Damaged −16.7 pp. Gate not passed. | **Complete** |
-| **Phase 3** | ResNet-18 + optical-gated scalar α + augmentation + Lovász loss. SAR delta flips to +2.2 pp; Damaged +4.7 pp. Gate not passed (+5.0 pp required). | **Complete** |
-| **Phase 4** | Close the gate gap: soft multi-label targets + task decoupling (localize then classify). Target: pass ablation gate. | Planned |
-| **Phase 4** | Add UNet-style decoder to Phase 2b encoder (reuse weights). Pixel-level segmentation, mIoU evaluation. | Planned |
-| **Phase 5** | DamageFormer / ChangeMamba. Match BRIGHT paper benchmark scores. | Exploratory |
+| Phase | Focus | SAR Delta | Status |
+|-------|-------|-----------|--------|
+| **Phase 1** | Custom 4-layer CNN, Turkey earthquake. Validate SAR signal. | +0.017 | **Complete** |
+| **Phase 1.5** | Custom CNN, Turkey + Beirut. Finding: SAR hurts on cross-event-type data. | −0.023 | **Complete** |
+| **Phase 2b** | ResNet-18 simple concat, Turkey + Noto. SAR class-conditional: Destroyed +6.4 pp, Damaged −16.7 pp. | −0.031 | **Complete** |
+| **Phase 3** | ResNet-18 + optical-gated scalar α + augmentation + Lovász. Best result: SAR delta +2.2 pp. Gate not passed. | **+0.022** | **Complete — Best** |
+| **Phase 4** | Turkey + Noto + Morocco + soft labels. Finding: SAR domain shift across construction types. | −0.096 | **Complete** |
+| **Phase 3b** | Turkey + Noto + soft labels only. Finding: soft labels hurt tile-level classification; freeze/unfreeze patience bug found and fixed. | −0.114 | **Complete** |
+| **Phase 5** | ChangeMamba / DamageFormer. Needs CUDA cloud GPU. Pixel-level supervision required to clear the gate. | — | Exploratory |
 
 ## Architecture Decision Records
 

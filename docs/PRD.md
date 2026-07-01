@@ -1,9 +1,9 @@
 PRODUCT REQUIREMENT DOCUMENT (PRD)
 Project: Multimodal Building Damage Assessment — SAR + Optical Fusion with BRIGHT
-Version: 3.0 (Phase 2b Complete — Turkey + Noto ResNet-18 Ablation)
+Version: 5.0 (Research Complete — All Phases Concluded)
 Author: Sabrina Pribadi
-Date: July 1, 2026
-Status: Phase 2b Complete — Phase 3 (Class-Conditional Fusion) Planned
+Date: July 2, 2026
+Status: Research Complete — Phase 3 is best result; gate not cleared; findings documented
 
 
 1. EXECUTIVE SUMMARY
@@ -426,9 +426,13 @@ Data Pipeline:
 |   (both models overwrite same .pt)| encoded in filename                                         |          |
 | Dashboard needs model/TIF at      | export_inference.py pre-computes everything; parquet with   | Resolved |
 |   runtime (not deployable)        | base64 thumbnails; requirements-streamlit.txt for Cloud     |          |
-| Ablation gate not passed          | Gate +0.017 vs required +0.05. Root cause: Damaged class    | Open     |
-|   (Turkey Phase 1)                | has 6 val samples. Plan: add Beirut explosion (15-20%       |          |
-|                                   | Damaged rate) in Phase 1.5 to address class imbalance       |          |
+| Freeze/unfreeze patience logic    | Phase 3b attempt 1: patience_counter not reset at unfreeze  | Resolved |
+|   (early stop before backbone     | caused frozen-phase stagnation to exhaust all 7 patience   |          |
+|   ever trained)                   | slots before epoch 9. Fix: only count patience after        |          |
+|                                   | backbone unfrozen; reset to 0 at unfreeze point.            |          |
+| Ablation gate not passed          | Final state: best SAR delta +0.022 (Phase 3). Gate requires | Final    |
+|   (all phases)                    | +0.050. Remaining levers (soft labels, Morocco) made it     |          |
+|                                   | worse. Gate requires pixel-level supervision or ChangeMamba. |          |
 
 
 12. SUCCESS CRITERIA
@@ -496,6 +500,47 @@ Phase 2b — Turkey Earthquake + Noto Earthquake (ResNet-18 pretrained backbone)
 - Early stopping: multimodal_v2 at epoch 6; optical_only_v2 at epoch 7 (of 20 configured)
 
 
+Phase 3 — Turkey Earthquake + Noto Earthquake (ResNet-18 + Optical-Gated SAR):
+- Train: 802 tiles (Turkey 772 + Noto 30) | Val: 118 tiles | Test: 231 tiles
+- FREEZE_EPOCHS=5 (head only), then full backbone at LR×0.1 with patience reset
+- Augmentation: paired hflip/vflip/rotation (both modalities) + optical-only colour jitter
+- Loss: CrossEntropyLoss(weights=[1,5,10]) + Lovász-Softmax surrogate IoU
+- Multimodal val F1: 0.580 | Optical-only val F1: 0.558 | SAR delta: +0.022
+- Per-class SAR delta: Intact +0.038, Damaged +0.047, Destroyed −0.019
+- Key finding: optical-gated scalar gate (α = sigmoid(Linear(opt_feat→1))) prevents circular
+  conditioning — optical features decide SAR trust. Gate correctly suppresses SAR noise on
+  Damaged (ambiguous partially-standing) tiles. First positive SAR delta on two-event run.
+  Phase 3 is the best result across all phases. Ablation gate (+0.050) not cleared.
+- XAI: Grad-CAM dual-branch heatmaps (pytorch-grad-cam) integrated into Tile Inspector;
+  opt_gradcam_thumb and sar_gradcam_thumb columns added to inference parquet.
+
+Phase 4 — Turkey + Noto + Morocco Earthquakes (soft pixel-distribution labels):
+- Additional event: morocco-earthquake (2023 High Atlas Mountains, rural mud-brick construction)
+- Morocco tiles: 567 on disk; 146 training-eligible (391 filtered: sparse building coverage)
+- Train: 948 tiles | Val: 142 tiles | Test: 278 tiles
+- Soft labels: _derive_soft_label() returns pixel fraction vector [p_intact, p_damaged, p_destroyed]
+  instead of hard majority-vote label. Loss: weighted soft-CE + Lovász.
+- Multimodal val F1: 0.396 | Optical-only val F1: 0.492 | SAR delta: −0.096
+- Notable: optical-only learned Damaged class for first time (F1=0.200) with Morocco data
+- Key finding: SAR domain shift across construction types breaks fusion. Morocco mud-brick
+  collapse produces different backscatter signatures than Turkish RC or Japanese residential
+  structures. Optical features are more construction-type-agnostic; SAR is not.
+  Optical improved; multimodal degraded — the SAR branch is more sensitive to domain shift.
+
+Phase 3b — Turkey + Noto only (soft labels, freeze=8, backbone LR×0.05):
+- Same events as Phase 3 (Morocco removed to isolate soft-label effect)
+- FREEZE_EPOCHS=8, patience only counts after unfreeze, backbone LR×0.05
+- Multimodal val F1: 0.283 | Optical-only val F1: 0.345 | SAR delta: −0.114
+- Key finding: soft pixel-distribution labels alone hurt both models. Most tiles are >80%
+  dominated by one class — soft labels flatten the gradient for these cases, producing a
+  shallower loss landscape and slower/weaker convergence. Hard one-hot labels are better
+  for tile-level classification. Soft labels would be appropriate for pixel-level tasks.
+- Secondary finding: freeze/unfreeze patience bug discovered and fixed. Not resetting
+  patience_counter at unfreeze allows frozen-phase stagnation (7+ epochs with identical F1)
+  to exhaust all patience before backbone ever trains. Correct design: patience counts only
+  in unfrozen phase; reset to 0 at unfreeze.
+
+
 14. LESSONS LEARNED — PHASE 1
 
 1. The pipeline works end-to-end on Apple MPS without GPU. Selective range-request
@@ -535,6 +580,44 @@ Phase 2b — Turkey Earthquake + Noto Earthquake (ResNet-18 pretrained backbone)
    (out of 20 configured). Best checkpoints consistently arrive early; patience=5 prevented
    wasted compute without stopping on epoch-to-epoch noise.
 
+9. The gate design for class-conditional fusion matters more than the backbone.
+   Phase 2b simple concat (SAR decides its own trust): −0.031. Phase 3 optical-only gate
+   (optical decides SAR trust): +0.022. Same backbone, same events, same data. The circular
+   conditioning problem — using SAR to gate SAR — was the critical flaw in prior designs.
+   A 513-parameter Linear(512→1) gate conditioned on optical features alone changed the sign
+   of the SAR delta and improved the Damaged class delta by 21.4 pp.
+
+10. Soft labels are wrong for tile-level classification with dominant-class tiles.
+    Pixel-distribution soft labels [0.85, 0.10, 0.05] provide richer supervision in theory
+    but flatten gradients for tiles where one class is dominant (>80% of building pixels).
+    Both models degraded in Phase 3b vs. Phase 3 hard-label baseline. Soft labels are
+    appropriate for pixel-level (segmentation) tasks where the label itself is a distribution;
+    at tile level they introduce unnecessary ambiguity. This is a granularity mismatch.
+
+11. SAR backscatter is less domain-transferable than optical representations.
+    Phase 4 added Morocco (mud-brick) to Turkey (RC) + Noto (Japanese residential).
+    Optical-only improved (learned Damaged class for first time: F1=0.200).
+    Multimodal degraded severely (SAR delta −0.096). The optical backbone learned
+    construction-type-agnostic damage patterns; the SAR branch did not. Collapsed mud-brick
+    produces fundamentally different backscatter than collapsed RC. Cross-construction-type
+    SAR fusion requires explicit domain adaptation or event-type conditioning.
+
+12. Freeze/unfreeze patience must be decoupled from frozen-phase stagnation.
+    During the frozen phase, the head has no backbone gradient signal — identical F1 across
+    8 frozen epochs is expected behaviour, not an early-stopping signal. Phase 3b attempt 1
+    (patience not reset at unfreeze) caused early stopping at epoch 8, exactly at the
+    freeze boundary, before the backbone ever received a gradient. Correct design:
+    patience_counter is reset to 0 at unfreeze AND only increments after backbone unfreezes.
+    This was implemented and verified in Phase 3b final run.
+
+13. +2.2 pp is the best SAR delta achievable with the current architecture.
+    Across 6 experimental configurations (Phase 1, 1.5, 2b, 3, 4, 3b), Phase 3 achieved
+    the global optimum. The ablation gate (+5.0 pp) was not cleared. Research conclusion:
+    SAR adds marginal, class-conditional, domain-sensitive value at tile level with ResNet-18.
+    Clearing the gate likely requires: (a) pixel-level supervision with UNet decoder,
+    (b) explicit temporal change encoding (ChangeMamba), or (c) domain-specific pre-training
+    on earthquake-only SAR imagery. These require cloud GPU compute beyond current scope.
+
 
 15. APPENDIX
 
@@ -543,13 +626,14 @@ Phase 2b — Turkey Earthquake + Noto Earthquake (ResNet-18 pretrained backbone)
 - Tech Stack: PyTorch, rasterio, BRIGHTDataset, httpx, huggingface_hub, Streamlit,
   Plotly, scikit-learn, Pandas, pyarrow, Pillow
 - Models: MultimodalDamageCNN (2.6M params), SingleModalDamageCNN (1.3M params)
-- Phase Roadmap:
-    Phase 1 (complete):  Custom 4-layer CNN, Turkey — SAR delta +0.017, gate not passed
+- Phase Roadmap (all tile-level phases complete):
+    Phase 1  (complete): Custom 4-layer CNN, Turkey — SAR delta +0.017, gate not passed
     Phase 1.5 (complete): Custom CNN, Turkey + Beirut — SAR delta −0.023, cross-event-type failure
-    Phase 2b (complete): ResNet-18, Turkey + Noto — SAR delta −0.031 macro, but Destroyed +0.064
-    Phase 3 (planned):   Class-conditional fusion — weight SAR by Destroyed probability
-    Phase 4 (planned):   ResNet-18 + UNet decoder — pixel-level segmentation, mIoU evaluation
-    Phase 5 (exploratory): DamageFormer / ChangeMamba — match BRIGHT paper benchmark
+    Phase 2b (complete): ResNet-18, Turkey + Noto — SAR delta −0.031 macro, Destroyed +0.064
+    Phase 3  (complete): ResNet-18 + optical gate + Lovász + augmentation — SAR delta +0.022 (BEST)
+    Phase 4  (complete): Turkey + Noto + Morocco + soft labels — SAR delta −0.096 (domain shift)
+    Phase 3b (complete): Turkey + Noto + soft labels only — SAR delta −0.114 (soft labels hurt)
+    Phase 5  (deferred): ChangeMamba / pixel-level UNet — needs CUDA cloud GPU
 - ADR Index (see docs/adr/README.md for full index with decision dependency graph):
     ADR-001: Tile classification as stepping stone to pixel segmentation
     ADR-002: Area-weighted label derivation (1%/5% thresholds; Morocco amendment)

@@ -1,10 +1,11 @@
 {
   "events": [
     "turkey-earthquake",
-    "noto-earthquake"
+    "noto-earthquake",
+    "morocco-earthquake"
   ],
   "model_type": "optical_only_v3",
-  "run_name": "turkey_earthquake+noto_earthquake",
+  "run_name": "turkey_earthquake+noto_earthquake+morocco_earthquake",
   "batch_size": 8,
   "image_size": 224,
   "epochs_config": 25,
@@ -17,14 +18,14 @@
     5.0,
     10.0
   ],
-  "best_val_f1": 0.345323,
-  "best_val_acc": 0.677966,
+  "best_val_f1": 0.491474,
+  "best_val_acc": 0.746479,
   "best_val_per_class_f1": {
-    "Intact": 0.797872,
-    "Damaged": 0.0,
-    "Destroyed": 0.238095
+    "Intact": 0.843049,
+    "Damaged": 0.2,
+    "Destroyed": 0.431373
   },
-  "test_macro_f1": 0.28093,
+  "test_macro_f1": 0.489866,
   "device": "mps",
-  "timestamp": "2026-07-02T01:57:45.686900"
+  "timestamp": "2026-07-01T23:22:30.956492"
 }
