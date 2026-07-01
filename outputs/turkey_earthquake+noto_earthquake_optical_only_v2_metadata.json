@@ -1,0 +1,30 @@
+{
+  "events": [
+    "turkey-earthquake",
+    "noto-earthquake"
+  ],
+  "model_type": "optical_only_v2",
+  "run_name": "turkey_earthquake+noto_earthquake",
+  "batch_size": 8,
+  "image_size": 224,
+  "epochs_config": 20,
+  "epochs_run": 7,
+  "learning_rate": 0.001,
+  "patience": 5,
+  "grad_clip": 1.0,
+  "class_weights": [
+    1.0,
+    5.0,
+    10.0
+  ],
+  "best_val_f1": 0.627941,
+  "best_val_acc": 0.737288,
+  "best_val_per_class_f1": {
+    "Intact": 0.825,
+    "Damaged": 0.5,
+    "Destroyed": 0.558824
+  },
+  "test_macro_f1": 0.479261,
+  "device": "mps",
+  "timestamp": "2026-07-01T09:07:57.824189"
+}

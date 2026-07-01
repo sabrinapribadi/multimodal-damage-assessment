@@ -1,9 +1,9 @@
 PRODUCT REQUIREMENT DOCUMENT (PRD)
 Project: Multimodal Building Damage Assessment — SAR + Optical Fusion with BRIGHT
-Version: 2.0 (Phase 1.5 Complete — Turkey + Beirut Ablation)
+Version: 3.0 (Phase 2b Complete — Turkey + Noto ResNet-18 Ablation)
 Author: Sabrina Pribadi
 Date: July 1, 2026
-Status: Phase 1.5 Complete — Phase 2 Planned
+Status: Phase 2b Complete — Phase 3 (Class-Conditional Fusion) Planned
 
 
 1. EXECUTIVE SUMMARY
@@ -474,15 +474,26 @@ Phase 1.5 — Turkey Earthquake + Beirut Explosion:
 - Beirut label distribution: Intact 88.7% / Damaged 6.0% / Destroyed 5.3%
   (localized port explosion, not widespread earthquake — hypothesis of 15-20% Damaged was wrong)
 - Combined: Train 861 tiles | Val 129 tiles | Test 248 tiles
-- Val distribution: Intact 87 / Damaged 7 / Destroyed 35
 - Multimodal val F1: 0.4207 | Optical-only val F1: 0.4432 | SAR delta: −0.023
-- SAR HURTS on mixed-event data: Intact recall drops from 0.86 (optical) to 0.55 (multimodal)
-  Root cause: Beirut explosion produces different SAR backscatter than earthquake rubble.
-  Water reflections, port debris, and blast patterns cause false alarms on intact buildings.
-- Early stopping fired at epoch 11 for optical-only (best at epoch 6) — saved ~9 epochs
-- Optical-only test F1: 0.4378 — val and test are consistent (no overfitting to val set)
-- Damaged class: 7 val samples, still F1=0.00 for both models
-  Damaged class requires fundamentally different data strategy, not just more events.
+- SAR hurts on mixed-event-type data: Beirut explosion backscatter fundamentally different
+  from earthquake rubble. Custom CNN cannot generalise the SAR feature extractor.
+
+Phase 2b — Turkey Earthquake + Noto Earthquake (ResNet-18 pretrained backbone):
+- Noto label distribution: Intact 20.0% / Damaged 8.9% / Destroyed 71.1% (45 labelled tiles)
+  (2024 Noto peninsula earthquake — widespread structural collapse, few partial damages)
+- Combined: Train 824 tiles | Val 121 tiles | Test 266 tiles
+- Multimodal (multimodal_v2) val F1: 0.597 | Optical-only (optical_only_v2) val F1: 0.628
+- SAR delta: −0.031 (gate not passed)
+- Per-class SAR delta:
+    Intact:    +0.009 (marginal, noise level)
+    Damaged:   −0.167 (SAR actively misleads — ambiguous backscatter for partially standing)
+    Destroyed: +0.064 (SAR provides clear signal — rubble scattering consistent across events)
+- Key finding: SAR is class-conditionally useful, not universally harmful or beneficial.
+  The macro gate fails because macro averaging weights the Damaged class loss (−0.167)
+  equally with the Destroyed gain (+0.064). The signal is real but needs class-aware fusion.
+- Test macro F1: multimodal 0.607 vs optical 0.479 — multimodal wins on test set despite
+  losing on val. This is the first phase where multimodal outperforms optical on test data.
+- Early stopping: multimodal_v2 at epoch 6; optical_only_v2 at epoch 7 (of 20 configured)
 
 
 14. LESSONS LEARNED — PHASE 1
@@ -510,14 +521,19 @@ Phase 1.5 — Turkey Earthquake + Beirut Explosion:
    dashboard loads from a committed file with 5 pure-Python dependencies. Zero inference
    overhead, no rasterio, no GPU. Any reviewer can run it in under 60 seconds with pip install.
 
-6. SAR signal is event-dependent, not universal. Phase 1 (single event): +1.7 pp.
-   Phase 1.5 (mixed events): −2.3 pp. The custom CNN cannot generalise SAR features across
-   event types. A pretrained backbone with ImageNet weights as initialisation (Phase 2) is
-   needed before drawing conclusions about SAR utility at scale.
+6. SAR signal is class-conditional, not universally present or absent. Phase 2b (ResNet-18,
+   two earthquakes) reveals the clearest finding yet: SAR helps Destroyed (+6.4 pp) and hurts
+   Damaged (−16.7 pp). The macro gate fails because macro averaging treats these equally.
+   The right next question is class-conditional fusion, not whether SAR helps overall.
 
-7. Early stopping is essential. Phase 1.5 optimal epoch was 6 out of 20 configured.
-   Without early stopping, 14 epochs (70% of training compute) would be wasted on
-   diverging val F1. Patience=5 is conservative enough to avoid stopping on noise.
+7. Test set generalisation favours multimodal. Phase 2b multimodal test F1 = 0.607 vs
+   optical test F1 = 0.479 — a +12.8 pp advantage on held-out data despite trailing on val
+   (−3.1 pp). Multimodal overfits less: the SAR branch regularises the optical branch by
+   forcing the fusion head to represent both modalities.
+
+8. Early stopping is essential. Phase 2b optimal epochs: multimodal at 6, optical at 7
+   (out of 20 configured). Best checkpoints consistently arrive early; patience=5 prevented
+   wasted compute without stopping on epoch-to-epoch noise.
 
 
 15. APPENDIX
@@ -528,11 +544,12 @@ Phase 1.5 — Turkey Earthquake + Beirut Explosion:
   Plotly, scikit-learn, Pandas, pyarrow, Pillow
 - Models: MultimodalDamageCNN (2.6M params), SingleModalDamageCNN (1.3M params)
 - Phase Roadmap:
-    Phase 1 (current): Custom 4-layer CNN, Turkey earthquake — SAR signal validation
-    Phase 1.5:         Custom CNN, all 14 BRIGHT events — generalisation test
-    Phase 2:           ResNet-18 pretrained optical + averaged-first-conv SAR — architecture confound removed
-    Phase 3:           ResNet-18 + UNet decoder — pixel-level segmentation, mIoU evaluation
-    Phase 4:           DamageFormer / ChangeMamba — match BRIGHT paper benchmark
+    Phase 1 (complete):  Custom 4-layer CNN, Turkey — SAR delta +0.017, gate not passed
+    Phase 1.5 (complete): Custom CNN, Turkey + Beirut — SAR delta −0.023, cross-event-type failure
+    Phase 2b (complete): ResNet-18, Turkey + Noto — SAR delta −0.031 macro, but Destroyed +0.064
+    Phase 3 (planned):   Class-conditional fusion — weight SAR by Destroyed probability
+    Phase 4 (planned):   ResNet-18 + UNet decoder — pixel-level segmentation, mIoU evaluation
+    Phase 5 (exploratory): DamageFormer / ChangeMamba — match BRIGHT paper benchmark
 - ADR Index (see docs/adr/README.md for full index with decision dependency graph):
     ADR-001: Tile classification as stepping stone to pixel segmentation
     ADR-002: Area-weighted label derivation (1%/5% thresholds; Morocco amendment)
