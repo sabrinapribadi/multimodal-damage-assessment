@@ -153,7 +153,7 @@ def render_gallery(rows: pd.DataFrame, model_col: str, model_name_col: str):
 
 def render_inspector(df: pd.DataFrame):
     tile_ids = df["tile_id"].tolist()
-    selected = st.selectbox("Select tile", tile_ids, format_func=lambda x: x.replace("turkey-earthquake_", ""))
+    selected = st.selectbox("Select tile", tile_ids, format_func=lambda x: x.replace("turkey-earthquake_", "").replace("noto-earthquake_", "noto_"))
     if not selected:
         return
 
@@ -187,6 +187,25 @@ def render_inspector(df: pd.DataFrame):
             legend=dict(orientation="h", y=1.1),
         )
         st.plotly_chart(fig, width='stretch')
+
+    # ── Grad-CAM attention maps ───────────────────────────────────────────────
+    has_gradcam = "opt_gradcam_thumb" in df.columns and pd.notna(row.get("opt_gradcam_thumb"))
+    if has_gradcam:
+        st.markdown("---")
+        st.markdown("**Grad-CAM Attention Maps** — multimodal model, predicted class")
+        g1, g2 = st.columns(2)
+        with g1:
+            st.image(base64.b64decode(row["opt_gradcam_thumb"]),
+                     caption="Optical branch attention", width='stretch')
+        with g2:
+            st.image(base64.b64decode(row["sar_gradcam_thumb"]),
+                     caption="SAR branch attention", width='stretch')
+        st.caption(
+            "Red = regions that most influenced the prediction. "
+            "Blue/green = low influence. "
+            "When the gate (α) is near 0 for this tile, the SAR map will be diffuse — "
+            "the model correctly distrusted the SAR signal."
+        )
 
 
 # ── Main layout ───────────────────────────────────────────────────────────────
