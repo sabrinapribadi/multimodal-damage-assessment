@@ -235,6 +235,63 @@ class SingleModalDamageCNNv2(nn.Module):
         return list(self.head.parameters())
 
 
+# ── Phase 3: Class-conditional SAR gate ──────────────────────────────────────
+
+class MultimodalDamageCNNv3(nn.Module):
+    """
+    Phase 3 dual-branch classifier with optical-conditioned scalar SAR gate.
+
+    The optical branch produces an initial damage estimate. The gate network uses
+    only those optical features to predict a scalar α ∈ [0,1] that controls how
+    much the SAR branch contributes. This prevents the circular problem of using
+    SAR features to decide whether to trust SAR.
+
+    Gate logic:
+      α → 0: fused ≈ optical features only   (Damaged/Intact tiles — SAR is noisy)
+      α → 1: fused = equal optical + SAR mix  (Destroyed tiles — SAR backscatter is reliable)
+
+    Gate:   sigmoid(Linear(512 → 1)) conditioned on optical features only
+    Fusion: (1 − α) · opt_feat + α · sar_feat
+    Head:   Linear(512 → 128) → ReLU → Dropout → Linear(128 → num_classes)
+    """
+
+    def __init__(self, num_classes: int = 3):
+        super().__init__()
+        self.optical_branch = ResNetBranch(in_channels=3, pretrained=True)
+        self.sar_branch     = ResNetBranch(in_channels=1, pretrained=True)
+
+        # Gate conditioned on optical only — keeps SAR out of its own trust decision
+        self.sar_gate = nn.Sequential(
+            nn.Linear(512, 1),
+            nn.Sigmoid(),
+        )
+        self.head = nn.Sequential(
+            nn.Linear(512, 128),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.3),
+            nn.Linear(128, num_classes),
+        )
+
+    def forward(self, optical: torch.Tensor, sar: torch.Tensor) -> torch.Tensor:
+        opt_feat = self.optical_branch(optical)          # (B, 512)
+        sar_feat = self.sar_branch(sar)                  # (B, 512)
+        alpha    = self.sar_gate(opt_feat)               # (B, 1) — optical predicts SAR trust
+        fused    = (1 - alpha) * opt_feat + alpha * sar_feat
+        return self.head(fused)
+
+    def backbone_params(self):
+        return (list(self.optical_branch.parameters()) +
+                list(self.sar_branch.parameters()))
+
+    def head_params(self):
+        return list(self.sar_gate.parameters()) + list(self.head.parameters())
+
+    def encode_both(self, optical: torch.Tensor, sar: torch.Tensor):
+        _, opt_skips = self.optical_branch.encode(optical)
+        _, sar_skips = self.sar_branch.encode(sar)
+        return opt_skips, sar_skips
+
+
 # ── Factory ───────────────────────────────────────────────────────────────────
 
 NUM_CLASSES = 3
@@ -257,10 +314,16 @@ def create_model(model_type: str = "multimodal", num_classes: int = NUM_CLASSES)
         return SingleModalDamageCNNv2(in_channels=3, num_classes=num_classes)
     elif model_type == "sar_only_v2":
         return SingleModalDamageCNNv2(in_channels=1, num_classes=num_classes)
+    elif model_type == "multimodal_v3":
+        return MultimodalDamageCNNv3(num_classes=num_classes)
+    elif model_type == "optical_only_v3":
+        # Same architecture as v2; Phase 3 protocol (augment + freeze-then-unfreeze) applied in train script
+        return SingleModalDamageCNNv2(in_channels=3, num_classes=num_classes)
     else:
         raise ValueError(f"Unknown model_type: {model_type!r}. "
                          f"Valid: multimodal, optical_only, sar_only, "
-                         f"multimodal_v2, optical_only_v2, sar_only_v2")
+                         f"multimodal_v2, optical_only_v2, sar_only_v2, "
+                         f"multimodal_v3, optical_only_v3")
 
 
 if __name__ == "__main__":

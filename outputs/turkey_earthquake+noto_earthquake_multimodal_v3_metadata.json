@@ -1,0 +1,30 @@
+{
+  "events": [
+    "turkey-earthquake",
+    "noto-earthquake"
+  ],
+  "model_type": "multimodal_v3",
+  "run_name": "turkey_earthquake+noto_earthquake",
+  "batch_size": 8,
+  "image_size": 224,
+  "epochs_config": 25,
+  "epochs_run": 19,
+  "learning_rate": 0.001,
+  "patience": 7,
+  "grad_clip": 1.0,
+  "class_weights": [
+    1.0,
+    5.0,
+    10.0
+  ],
+  "best_val_f1": 0.58038,
+  "best_val_acc": 0.737288,
+  "best_val_per_class_f1": {
+    "Intact": 0.82716,
+    "Damaged": 0.333333,
+    "Destroyed": 0.580645
+  },
+  "test_macro_f1": 0.4541,
+  "device": "mps",
+  "timestamp": "2026-07-01T11:29:21.986154"
+}
