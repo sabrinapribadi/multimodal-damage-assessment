@@ -1,6 +1,6 @@
 # ADR-002: Area-Weighted Tile Label Derivation
 
-**Status:** Amended 2026-06-29 — thresholds revised after Morocco empirical analysis  
+**Status:** Amended twice — thresholds revised 2026-06-29; soft labels tried and rejected 2026-07-02  
 **Date:** 2026-06-29  
 **Deciders:** Sabrina Pribadi  
 **Technical Story:** Grill-Me design interview — Q1 follow-up on label quality
@@ -36,7 +36,7 @@ A tile-level classification label must be derived from the pixel-level segmentat
 
 **Option D — Soft multi-label**
 - Label = proportion vector [p_intact, p_damaged, p_destroyed], trained with BCELoss or KL-divergence
-- Deferred to Phase 3: requires architectural changes to the classification head
+- Deferred at ADR write time; implemented and empirically rejected in Phase 3b (see amendment below)
 
 ## Decision Outcome
 
@@ -77,6 +77,44 @@ Training on Morocco alone (392 train tiles) revealed the original thresholds wer
 **Outcome**: train Intact=138 / Damaged=6 / Destroyed=2; val Intact=20 / Damaged=2 / Destroyed=2. All 3 classes now represented in both splits.
 
 **Note for Phase 1.5+**: When expanding to all 14 events, revisit whether event-specific thresholds (or a single global threshold calibrated on the full 4,246-tile distribution) perform better.
+
+## Amendment 2: Soft multi-label experiment — tried and rejected (2026-07-02)
+
+**What was tried (Phase 3b):** Option D (deferred above) was implemented as `_derive_soft_label()` —
+returning the pixel-fraction distribution `[p_intact, p_damaged, p_destroyed]` as a float vector
+instead of the hard integer label. The training loss was replaced with a weighted soft cross-entropy:
+`loss = -(soft_label * log_softmax(logits)).sum(1).mean()`, with per-sample weights derived from
+the expected class weight under the soft distribution.
+
+**Implementation:**
+```python
+# src/data/brighT_loader.py — _derive_soft_label()
+return np.array([
+    float((mask == 1).sum()) / n_building,   # p_intact
+    float((mask == 2).sum()) / n_building,   # p_damaged
+    float((mask == 3).sum()) / n_building,   # p_destroyed
+], dtype=np.float32)
+```
+
+**Empirical result (Phase 3b, Turkey + Noto):**
+
+| Model | Hard labels (Phase 3) | Soft labels (Phase 3b) | Delta |
+|-------|-----------------------|------------------------|-------|
+| Multimodal val F1 | 0.580 | 0.283 | −0.297 |
+| Optical-only val F1 | 0.558 | 0.345 | −0.213 |
+
+Both models degraded significantly. SAR delta went from +0.022 (Phase 3) to −0.114 (Phase 3b).
+
+**Root cause:** The tile-level classification task is a granularity mismatch for soft labels.
+Most tiles (>80%) are dominated by a single class — a tile that is 90% Intact buildings has
+a soft label `[0.90, 0.05, 0.05]`. This is nearly uniform, producing a flat gradient that gives
+the model minimal directional signal about which class to predict. The loss landscape becomes
+shallower, convergence is slower, and the resulting decision boundary is weaker.
+
+**Conclusion:** Option D (soft labels) is appropriate for **pixel-level segmentation** tasks,
+where the output label is itself a spatial distribution. For tile-level classification where most
+tiles are class-dominant, hard one-hot labels (Option C) remain superior. This ADR amendment
+closes Option D as **Rejected for tile-level classification**.
 
 ## Implementation Notes
 
