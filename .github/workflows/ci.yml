@@ -1,0 +1,13 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      # the dashboard's runtime dependencies (no torch or rasterio): the tests check the committed results it reads
+      - run: pip install -r requirements-streamlit.txt pytest ruff
+      - run: ruff check --select E9,F63,F7,F82 src scripts tests
+      - run: python -m pytest -q tests
