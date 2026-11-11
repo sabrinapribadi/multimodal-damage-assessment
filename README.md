@@ -1,17 +1,37 @@
 # Multimodal Building Damage Assessment
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Streamlit_Cloud-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://multimodal-damage-assessment-d3dyfacsb2zwiqhtgovrsb.streamlit.app/)
+<!-- brief:start -->
+
+## At a glance
+
+1. **What:** A deep-learning model that rates building damage from satellite images after earthquakes, fusing optical and radar (SAR) images.
+2. **Why:** Responders need damage maps within hours, but clouds, smoke and night block optical images; radar sees through them.
+3. **Who:** Users: disaster responders and damage analysts.
+   - Data: the public BRIGHT dataset (Hugging Face): pre-event optical and post-event radar tiles, labelled intact, damaged or destroyed.
+4. **Where:** [Dashboard](https://multimodal-damage-assessment-d3dyfacsb2zwiqhtgovrsb.streamlit.app/) on Streamlit Community Cloud, reading precomputed results (no model at runtime).
+5. **When it fails:** Gate set first: radar must add ≥ 5 points of macro F1. Never met in six phases; best +2.2 points; adding Morocco gave −9.6.
+   - No live A/B test: an offline ablation scores the same tiles with and without radar on validation and test splits.
+6. **How:** ResNet-18 with an optical-gated radar branch and a Lovász loss, against an optical-only twin on identical tiles.
+   - Result: macro F1 0.580 vs 0.558 on validation, but optical-only wins on test (0.512 vs 0.454); macro F1 averages the three damage classes.
+
+**Skills applied** (each linked to the file or decision that shows it):
+
+- **Computer vision:** ResNet-18 backbone, gated two-image fusion, Lovász-Softmax loss — [baseline_model.py](src/models/baseline_model.py), [ADR-005](docs/adr/ADR-005-encoder-architecture.md)
+- **Remote sensing:** optical and SAR tiles, tile labels from building footprints — [ADR-002](docs/adr/ADR-002-tile-label-derivation.md), [ADR-004](docs/adr/ADR-004-backbone-and-sar-adaptation.md)
+- **Data engineering:** selective download from a 13 GB zip with HTTP range requests — [download_events.py](scripts/download_events.py)
+- **Experiment design:** pre-registered ablation gate, negative results reported phase by phase — [ADR-001](docs/adr/ADR-001-task-framing.md), [ADR-003](docs/adr/ADR-003-validation-strategy.md)
+- **MLOps and CI:** precomputed results for a free dashboard; CI on every push — [ADR-006](docs/adr/ADR-006-deployment-and-output.md), [ci.yml](.github/workflows/ci.yml)
+
+<!-- brief:end -->
+
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![Dataset](https://img.shields.io/badge/Dataset-BRIGHT-00BFFF?style=for-the-badge)](https://huggingface.co/datasets/Kullervo/BRIGHT)
 
-## Why This Project
+## Free-tier limits
 
-After a disaster like an earthquake or hurricane, first responders need damage maps within hours — but optical satellite imagery is frequently blocked by clouds, smoke, or darkness. Synthetic Aperture Radar (SAR) penetrates all of these, making it available day and night in any weather.
-
-This project builds a dual-modality deep learning system that fuses pre-event optical imagery with post-event SAR to classify building damage at the tile level. The core research question — framed as a rigorous ablation — is: **does adding SAR to optical actually improve damage classification, or is optical alone sufficient?**
-
-Six experimental phases systematically tested whether SAR improves building damage classification. **Phase 3 achieved the best result: +2.2 pp macro F1 improvement from adding SAR**, using an optical-gated fusion design (ResNet-18, Turkey + Noto earthquakes). The gate (+5 pp) was not passed — but the research produced interpretable findings at each stage. Phase 4 (adding Morocco earthquake + soft pixel-distribution labels) revealed that SAR backscatter signatures are less transferable across construction types than optical: the multimodal model degraded −9.6 pp relative to optical-only while optical itself improved. Phase 3b (Turkey + Noto + soft labels, no Morocco) confirmed that soft labels alone are the cause — they dilute the training signal for dominant-class tiles, making convergence slower and shallower regardless of domain.
+- **Free-tier limits (R20):** the app sleeps after 12 hours without traffic; any visitor can wake it; up to 2.7 GB memory.
+- **Fallback while it sleeps:** the results tables in this README.
 
 ## System Architecture
 

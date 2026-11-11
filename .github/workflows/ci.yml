@@ -8,6 +8,8 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.12", cache: pip}
       # the dashboard's runtime dependencies (no torch or rasterio): the tests check the committed results it reads
-      - run: pip install -r requirements-streamlit.txt pytest ruff
+      - run: pip install -r requirements-streamlit.txt pytest ruff pyyaml
       - run: ruff check --select E9,F63,F7,F82 src scripts tests
+      - name: Brief in sync with docs/brief.yaml (R22)
+        run: python scripts/brief.py --check
       - run: python -m pytest -q tests

@@ -2,6 +2,14 @@
 
 Newest first. Each entry uses STAR (Situation, Task, Action, Result) so it can be told as a story.
 
+## [5.2.0] — 2026-11-11 — At-a-glance brief (R22), free-tier notes
+**Files:** docs/brief.yaml (new), scripts/brief.py (new), README.md, .github/workflows/ci.yml, CHANGELOG.md
+- **Situation:** A reader had to scroll and piece together what the damage-assessment study is, why, who, where, when it fails and how.
+- **Task:** Put one numbered 5W1H brief first, with the skills applied and links to proof, without repeating it below (R22).
+- **Action:** One source (docs/brief.yaml) written into the README by script and checked in CI. Removed the 'Why This Project' section and live-demo badge the brief repeats; added Streamlit's free-tier limits (R20).
+- **Result:** The first screen answers the six questions; CI fails if the brief and its source drift apart.
+- **Talking point:** "Six lines tell you what it is, why, who uses it, where it runs, how it fails and how it works."
+
 ## [5.1.0] — 2026-11-11 — CI on every push
 **Files:** tests/test_inference_results.py, .github/workflows/ci.yml
 - **Situation:** No CI and no tests; the README's Phase 3 numbers had nothing checking them against the data.
