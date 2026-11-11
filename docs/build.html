@@ -1,0 +1,484 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Damage Mapping Build Walkthrough</title>
+<!-- share preview (portfolio rule R18) -->
+<meta name="description" content="How the radar-plus-optical damage study was built, phase by phase: the bar set beforehand, every result, obstacles and fixes.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sabrinapribadi.github.io/multimodal-damage-assessment/build.html">
+<meta property="og:title" content="Damage Mapping Build Walkthrough">
+<meta property="og:description" content="How the radar-plus-optical damage study was built, phase by phase: the bar set beforehand, every result, obstacles and fixes.">
+<meta property="og:image" content="https://sabrinapribadi.github.io/multimodal-damage-assessment/assets/preview-build.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="627">
+<meta property="og:image:alt" content="Top of the Damage Mapping Build Walkthrough page">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /share preview -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+/* Technical walkthrough (portfolio rule R14). Generated from the shared walkthrough template. */
+:root {
+  --bg: #f4f2ed; --surface: #fffdf9; --fg: #1f1d1a; --muted: #625d55; --line: #e0dbd1; --tint: #ece8df;
+  --accent: #3949a3; --accent-soft: #e1e4f6;
+  --ok: #2c7a4b; --ok-soft: #dcefe3; --bad: #b23a2a; --bad-soft: #f6e0dc; --run: #35648f; --run-soft: #dfe9f3;
+  --lane-a: #f1eee7; --lane-b: #f8f6f1;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15130f; --surface: #1d1a15; --fg: #ece6db; --muted: #a49c8f; --line: #353026; --tint: #24201a;
+  --accent: #9aa6f0; --accent-soft: #1e2340;
+  --ok: #5fc48a; --ok-soft: #173326; --bad: #f08068; --bad-soft: #42221c; --run: #7fb0e0; --run-soft: #1b2a3a;
+  --lane-a: #1a1712; --lane-b: #17140f;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #15130f; --surface: #1d1a15; --fg: #ece6db; --muted: #a49c8f; --line: #353026; --tint: #24201a;
+  --accent: #9aa6f0; --accent-soft: #1e2340;
+  --ok: #5fc48a; --ok-soft: #173326; --bad: #f08068; --bad-soft: #42221c; --run: #7fb0e0; --run-soft: #1b2a3a;
+  --lane-a: #1a1712; --lane-b: #17140f;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 var(--font-body); }
+.wrap { max-width: 1160px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font: 700 clamp(28px, 4vw, 42px)/1.15 var(--font-head); letter-spacing: -0.01em; }
+h2 { font: 700 24px/1.2 var(--font-head); }
+h3 { font-size: 15px; font-weight: 600; }
+p { margin: 0; }
+.eyebrow { font: 600 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+header.top { display: grid; gap: 14px; padding-block: 8px 24px; border-bottom: 1px solid var(--line); }
+header.top .lede { font-size: 17px; max-width: 66ch; }
+.links { display: flex; flex-wrap: wrap; gap: 8px 18px; font: 500 13px var(--font-mono); }
+.links a { text-decoration: none; }
+.links a:hover { text-decoration: underline; }
+
+section.block { display: grid; gap: 18px; padding-block: 34px 6px; }
+.howto { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.howto div { border-left: 3px solid var(--accent); padding: 2px 0 2px 12px; display: grid; gap: 2px; }
+.howto b { font-size: 14px; }
+.howto span { font-size: 13px; color: var(--muted); }
+
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font: 600 11.5px var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); background: var(--tint); }
+tr:last-child td { border-bottom: 0; }
+
+.map { min-width: 980px; }
+.map th.ph { cursor: pointer; white-space: nowrap; }
+.map th.ph:hover, .map th.ph.on { color: var(--accent); }
+.map th.ph.on { background: var(--accent-soft); }
+.map td.lane { font: 600 12px var(--font-mono); color: var(--muted); white-space: nowrap; background: var(--tint); }
+.map td.cell { font-size: 12.5px; line-height: 1.4; cursor: pointer; }
+.map td.cell.on { background: var(--accent-soft); }
+.map td.cell span { display: block; }
+.map td.cell span + span { margin-top: 4px; }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1 var(--font-mono); letter-spacing: 0.03em; padding: 5px 8px; border-radius: 999px; white-space: nowrap; }
+.chip.pass { background: var(--ok-soft); color: var(--ok); }
+.chip.fail { background: var(--bad-soft); color: var(--bad); }
+.chip.run { background: var(--run-soft); color: var(--run); }
+.chip.plan { background: var(--tint); color: var(--muted); }
+
+.picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.picker button { font: 600 13px var(--font-mono); border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 8px; padding: 8px 12px; cursor: pointer; display: grid; gap: 4px; justify-items: start; }
+.picker button small { font: 500 11px var(--font-body); color: var(--muted); }
+.picker button[aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); }
+@media (max-width: 600px) {
+  .picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .picker button { padding: 7px 9px; min-width: 0; }
+  .picker button small { display: none; }
+  .picker .chip { white-space: normal; line-height: 1.25; }
+}
+
+.phase-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 16px; }
+.phase-head .dates { font: 500 12px var(--font-mono); color: var(--muted); }
+.scqa { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.scqa div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.scqa b { font: 600 11px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.scqa p { font-size: 13.5px; line-height: 1.5; }
+@media (max-width: 860px) { .scqa { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .scqa { grid-template-columns: minmax(0, 1fr); } }
+
+.lanewrap { display: grid; gap: 12px; }
+.walk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.walk button { font: 600 13px var(--font-body); border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+.walk button.primary { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.walk button:disabled { opacity: 0.45; cursor: default; }
+.walk .pos { font: 600 12px var(--font-mono); color: var(--muted); }
+svg.swim { display: block; }
+svg.swim .lane-bg { fill: var(--lane-a); }
+svg.swim .lane-bg.alt { fill: var(--lane-b); }
+svg.swim .lane-label { fill: var(--muted); font: 600 11px var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+svg.swim .lane-line { stroke: var(--line); }
+svg.swim .edge { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+svg.swim .arrowhead { fill: var(--muted); }
+svg.swim g.step { cursor: pointer; outline: none; }
+svg.swim g.step rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+svg.swim g.step text { fill: var(--fg); font: 500 11.5px var(--font-body); }
+svg.swim g.step .num { fill: var(--accent); font: 700 11px var(--font-mono); }
+svg.swim g.step.kind-fail rect { stroke: var(--bad); }
+svg.swim g.step.kind-fix rect { stroke: var(--ok); }
+svg.swim g.step.kind-plan rect { stroke-dasharray: 4 3; }
+svg.swim g.step:hover rect, svg.swim g.step:focus rect { stroke: var(--accent); stroke-width: 2; }
+svg.swim g.step.current rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.4; }
+svg.swim g.step.done rect { fill: var(--tint); }
+.lane-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
+.lane-legend i { display: inline-block; width: 18px; height: 11px; border-radius: 3px; border: 1.5px solid var(--line); vertical-align: -1px; margin-right: 6px; background: var(--surface); }
+.lane-legend i.fail { border-color: var(--bad); }
+.lane-legend i.fix { border-color: var(--ok); }
+.lane-legend i.plan { border-style: dashed; }
+
+.detail { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; }
+.detail .kv { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 4px 12px; font-size: 13.5px; }
+.detail .kv b { font: 600 11px var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+.detail code, td code { font: 12px var(--font-mono); background: var(--tint); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+
+#phase { display: grid; gap: 30px; padding-top: 10px; }
+#phase > .part + .part { border-top: 1px solid var(--line); padding-top: 26px; }
+.ph-top { display: grid; gap: 14px; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; align-items: start; }
+@media (max-width: 860px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.box { display: grid; gap: 12px; min-width: 0; align-content: start; }
+.box > .eyebrow ~ .eyebrow { margin-top: 16px; }
+ul.points { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+.star { margin: 0; border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; font: italic 600 16px/1.5 var(--font-head); }
+.obst td:first-child { width: 22%; }
+@media (max-width: 600px) {
+  .obst thead { display: none; }
+  .obst, .obst tbody, .obst tr, .obst td { display: block; width: 100%; }
+  .obst tr { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .obst tr:last-child { border-bottom: 0; }
+  .obst td, .obst td:first-child { width: auto; border: 0; padding: 3px 0; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; }
+  .obst td::before { content: attr(data-label); font: 600 10.5px var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+  .obst td:first-child { font-weight: 600; }
+}
+.verdict-ok { color: var(--ok); font-weight: 600; }
+.verdict-no { color: var(--bad); font-weight: 600; }
+.verdict-wait { color: var(--run); font-weight: 600; }
+.tip { position: fixed; z-index: 10; max-width: 300px; background: var(--fg); color: var(--bg); font-size: 12.5px; line-height: 1.45; padding: 8px 10px; border-radius: 8px; pointer-events: none; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18); }
+.tip b { display: block; margin-bottom: 2px; }
+footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
+/* brief:css:start (rule R22, written by scripts/brief.py) */
+.brief { display: grid; gap: 12px; padding-block: 18px 4px; text-align: left; }
+.brief a { color: var(--accent); }
+.brief-list { list-style: none; margin: 0; padding: 0 !important; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+.brief-list li { display: grid; align-content: start; gap: 4px; padding: 12px 14px; min-width: 0;
+  background: var(--surface); border: 1px solid var(--line, var(--border)); border-radius: 8px; }
+.brief-w { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.brief-main { font-size: 14.5px; line-height: 1.45; color: var(--fg, var(--text)); }
+.brief-sub { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.brief-skills summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.brief-skills ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.45; }
+.brief-proof { font-size: 12px; margin-left: 4px; white-space: nowrap; }
+/* brief:css:end */
+</style>
+
+<div class="wrap">
+<header class="top">
+  <span class="eyebrow">Technical walkthrough · radar and optical damage mapping</span>
+  <h1>How the damage-mapping study was built, phase by phase</h1>
+<!-- brief:start -->
+<section class="brief" id="brief" aria-label="Project at a glance"><span class="eyebrow">At a glance</span><ol class="brief-list"><li><span class="brief-w">1 · What</span><span class="brief-main">A deep-learning model that rates building damage from satellite images after earthquakes, fusing optical and radar (SAR) images.</span></li><li><span class="brief-w">2 · Why</span><span class="brief-main">Responders need damage maps within hours, but clouds, smoke and night block optical images; radar sees through them.</span></li><li><span class="brief-w">3 · Who</span><span class="brief-main">Users: disaster responders and damage analysts.</span></li><li><span class="brief-w">4 · Where</span><span class="brief-main"><a href="https://sabrinapribadi.github.io/multimodal-damage-assessment/">Results page</a> and <a href="https://sabrinapribadi.github.io/multimodal-damage-assessment/build.html">technical walkthrough</a> on GitHub Pages; <a href="https://multimodal-damage-assessment-d3dyfacsb2zwiqhtgovrsb.streamlit.app/">tile dashboard</a> on Streamlit Community Cloud, no model at runtime.</span></li><li><span class="brief-w">5 · When it fails</span><span class="brief-main">Gate set first: radar must add ≥ 5 points of macro F1. Never met in six phases; best +2.2 points; adding Morocco gave −9.6.</span></li><li><span class="brief-w">6 · How</span><span class="brief-main">ResNet-18 with an optical-gated radar branch and a Lovász loss, against an optical-only twin on identical tiles.</span></li></ol><details class="brief-skills"><summary>Skills applied, with proof</summary><ul><li><b>Computer vision</b> ResNet-18 backbone, gated two-image fusion, Lovász-Softmax loss <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/src/models/baseline_model.py">baseline_model.py</a> <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-005-encoder-architecture.md">ADR-005</a></li><li><b>Remote sensing</b> optical and SAR tiles, tile labels from building footprints <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-002-tile-label-derivation.md">ADR-002</a> <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-004-backbone-and-sar-adaptation.md">ADR-004</a></li><li><b>Data engineering</b> selective download from a 13 GB zip with HTTP range requests <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/scripts/download_events.py">download_events.py</a></li><li><b>Experiment design</b> pre-registered ablation gate, negative results reported phase by phase <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-001-task-framing.md">ADR-001</a> <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-003-validation-strategy.md">ADR-003</a></li><li><b>MLOps and CI</b> precomputed results for a free dashboard; CI on every push <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-006-deployment-and-output.md">ADR-006</a> <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/.github/workflows/ci.yml">ci.yml</a></li></ul></details></section>
+<!-- brief:end -->
+
+  <div class="links">
+    <a href="./">← Results page</a>
+    <a href="https://github.com/sabrinapribadi/multimodal-damage-assessment">Code and ADRs</a>
+    <a href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/CHANGELOG.md">Change log (STAR)</a>
+  </div>
+</header>
+
+<section class="block" aria-labelledby="h-read">
+  <span class="eyebrow" id="h-read">How to read each phase</span>
+  <div class="howto">
+    <div><b>SCQA</b><span>Situation · Complication · Question · Answer (the gate result)</span></div>
+    <div><b>Swimlane</b><span>Build steps by layer; step through with Next</span></div>
+    <div><b>Decisions</b><span>What was chosen, with the ADR that records why</span></div>
+    <div><b>Obstacles</b><span>Symptom → root cause → fix → prevention</span></div>
+    <div><b>Result vs gate</b><span>Pass or fail against the bar set in advance</span></div>
+    <div><b>Lessons + STAR</b><span>What carries over, and the one-line interview story</span></div>
+  </div>
+</section>
+
+<section class="block" aria-labelledby="h-map">
+  <div class="phase-head"><h2 id="h-map">System map</h2><span class="muted">What each phase adds to each layer. Click a phase to open it.</span></div>
+  <div class="scroll"><table class="map" id="map"></table></div>
+</section>
+
+<section class="block" aria-labelledby="h-phase">
+  <span class="eyebrow" id="h-phase">Phase</span>
+  <div class="picker" id="picker" role="tablist" aria-label="Phases"></div>
+  <article id="phase"></article>
+</section>
+
+<footer>
+  <span>Every number comes from the README result tables, <code>data/inference_results.parquet</code>, <code>outputs/</code> and the ADRs. Data: BRIGHT (Chen et al. 2025).</span>
+  <span>Sabrina Pribadi · last updated <span id="updated"></span> · <a href="./">results page</a> · <a href="https://github.com/sabrinapribadi/multimodal-damage-assessment">github.com/sabrinapribadi/multimodal-damage-assessment</a></span>
+</footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script>
+const P = {updated: '11 Nov 2026'};
+const REPO = "https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/";
+const ADR = {"001": "docs/adr/ADR-001-task-framing.md", "002": "docs/adr/ADR-002-tile-label-derivation.md", "003": "docs/adr/ADR-003-validation-strategy.md",
+  "004": "docs/adr/ADR-004-backbone-and-sar-adaptation.md", "005": "docs/adr/ADR-005-encoder-architecture.md", "006": "docs/adr/ADR-006-deployment-and-output.md"};
+const LANES = ["Data (BRIGHT)", "Labels", "Model", "Evaluation", "Serving & UI", "Platform & CI", "Decision"];
+
+const PHASES = [
+{
+  id: "p1", tag: "P1", name: "Turkey baseline", dates: "29–30 Jun 2026", verdict: ["fail", "+1.7 points (bar +5)"],
+  scqa: ["BRIGHT pairs pre-event optical and post-event radar images with building damage labels.",
+         "The full archive is about 13 GB, and radar has never been tested here against optical alone.",
+         "On the Turkey earthquake, does radar add 5 points of macro F1?",
+         "No: +1.7 points (0.409 vs 0.392). The gate correctly called it not enough."],
+  steps: [
+    ["Decision", "Gate set first", "Radar must add 5 points of validation macro F1.", "A clear pass or fail.", "docs/adr/ADR-003-validation-strategy.md"],
+    ["Data (BRIGHT)", "Selective download", "Reads the zip's directory over HTTP and fetches only needed tiles (about 3.5 GB).", "Avoids a 13 GB download.", "scripts/download_events.py"],
+    ["Labels", "Tile labels", "Intact, damaged or destroyed per tile from area-weighted footprints.", "A tile-level task the CPU can train.", "src/data/brighT_loader.py"],
+    ["Model", "Twin models", "Custom 4-layer CNN with and without the radar branch.", "Same model, one input changed.", "src/models/baseline_model.py"],
+    ["Serving & UI", "Dashboard", "Streamlit app reading precomputed results; no model at runtime.", "Free hosting.", "docs/adr/ADR-006-deployment-and-output.md"]
+  ],
+  decisions: [["Tile-level classification", "001"], ["Labels from footprints", "002"], ["Validation and the 5-point gate", "003"]],
+  results: [["Radar gain, validation macro F1", "≥ +5 points", "+1.7", "no"]],
+  obstacles: [["Loading crashed on some tiles", "Truncated or corrupt image files", "A validity check skips bad tiles", "Validate every file when loading"]],
+  lessons: ["A small gain is not a pass; write the bar first."],
+  star: "I set a 5-point bar before training; radar added 1.7, and I reported it as a fail."
+},
+{
+  id: "p2", tag: "P1.5", name: "Mixed events", dates: "1 Jul 2026", verdict: ["fail", "−2.3 points"],
+  scqa: ["One earthquake is a small sample.", "Adding the Beirut explosion mixes two kinds of disaster.",
+         "Does radar still help across event types?", "No: radar hurt (0.421 vs 0.443)."],
+  steps: [
+    ["Data (BRIGHT)", "Add Beirut", "Turkey earthquake plus the Beirut port explosion.", "More tiles, more variety.", "scripts/download_events.py"],
+    ["Model", "Same twins", "The P1 CNN with and without the radar branch.", "Only the data changed.", "src/models/baseline_model.py"],
+    ["Evaluation", "Same twin test", "Optical + radar vs optical only on the same tiles.", "Like-for-like.", "scripts/train_model.py"]
+  ],
+  decisions: [], results: [["Radar gain, validation macro F1", "≥ +5 points", "−2.3", "no"]],
+  obstacles: [["Radar hurt on mixed events", "Explosion and earthquake damage look different on radar", "Kept events of one kind for the next phases", "Group events by damage mechanism"]],
+  lessons: ["More data of a different kind can make a signal worse."],
+  star: "Mixing an explosion with an earthquake made radar hurt, so I kept to one disaster type."
+},
+{
+  id: "p3", tag: "P2b", name: "Pretrained backbone", dates: "1 Jul 2026", verdict: ["fail", "−3.1 points"],
+  scqa: ["The custom CNN is small.", "A pretrained ResNet-18 sees optical images better, but radar has one channel.",
+         "With a stronger backbone on Turkey and Noto, does radar help?", "Not overall (−3.1): it helps destroyed buildings (+6.4) and hurts damaged ones (−16.7)."],
+  steps: [
+    ["Model", "ResNet-18", "Pretrained backbone; radar's first layer averaged from the colour weights.", "Reuse ImageNet features.", "docs/adr/ADR-004-backbone-and-sar-adaptation.md"],
+    ["Data (BRIGHT)", "Turkey + Noto", "Two earthquakes: 1,151 tiles.", "Same disaster type, two regions.", "data/inference_results.parquet"],
+    ["Evaluation", "Per-class view", "F1 per damage class, not just the average.", "Shows where radar helps and hurts.", "README.md"]
+  ],
+  decisions: [["ResNet-18 with an adapted radar layer", "004"]],
+  results: [["Radar gain, validation macro F1", "≥ +5 points", "−3.1", "no"]],
+  obstacles: [["Radar hurt partly standing buildings", "Radar echoes from damaged structures look like intact ones", "Let optical decide when to trust radar (next phase)", "Read per-class results before averaging"]],
+  lessons: ["An average can hide a class where the extra input helps."],
+  star: "Per-class results showed radar helps destroyed buildings but hurts damaged ones, which led to the gated design."
+},
+{
+  id: "p4", tag: "P3", name: "Optical-gated radar", dates: "1 Jul 2026", verdict: ["fail", "+2.2 points, best"],
+  scqa: ["Radar helps some classes and hurts others.", "Simple fusion adds radar everywhere.",
+         "Can optical features decide how much to trust radar?", "Partly: +2.2 points (0.580 vs 0.558), the best result, still below +5; optical-only wins on test."],
+  steps: [
+    ["Model", "Gated fusion", "Optical features set a weight on the radar branch per tile.", "Trust radar only where it helps.", "docs/adr/ADR-005-encoder-architecture.md"],
+    ["Model", "Training changes", "Paired augmentation and Lovász-Softmax loss.", "Better on rare classes.", "src/data/brighT_loader.py"],
+    ["Evaluation", "Validation and test", "Validation +2.2 points; test −5.8 points.", "Check both splits.", "data/inference_results.parquet"],
+    ["Serving & UI", "Explainability", "Grad-CAM maps for both branches in the dashboard.", "See what each image contributes.", "README.md"]
+  ],
+  decisions: [["Optical-gated fusion", "005"]],
+  results: [["Radar gain, validation macro F1", "≥ +5 points", "+2.2", "no"], ["Radar gain, test macro F1", "report", "−5.8", ""]],
+  obstacles: [["Validation and test disagreed", "Small test set (231 tiles, 10 from Noto)", "Report both; no claim of a gain", "Size the test set before testing a few points"]],
+  lessons: ["The best validation result still needs the test split's agreement."],
+  star: "My best design gained 2.2 points on validation but lost on test, and I reported both."
+},
+{
+  id: "p5", tag: "P4", name: "Soft labels and Morocco", dates: "2 Jul 2026", verdict: ["fail", "−9.6 and −6.2 points"],
+  scqa: ["Tile labels throw away how much of a tile is damaged.", "Soft labels and a third event might help.",
+         "Do they let radar pass the bar?", "No: adding Morocco gave −9.6 points; soft labels alone −6.2."],
+  steps: [
+    ["Labels", "Soft labels", "Shares of damaged pixels instead of one class per tile.", "Keep partial damage.", "docs/adr/ADR-002-tile-label-derivation.md"],
+    ["Data (BRIGHT)", "Add Morocco", "Rural mud-brick buildings from the 2023 Morocco earthquake.", "A different construction type.", "scripts/download_morocco.py"],
+    ["Evaluation", "Two tests", "Phase 4 (+ Morocco): −9.6 points; Phase 3b (soft labels only): −6.2.", "Separate the two changes.", "outputs/", "fail"],
+    ["Model", "Training fix", "A freeze/unfreeze patience bug found and fixed.", "Fair early stopping.", "scripts/train_model.py", "fix"],
+    ["Decision", "Pixel-level next", "Change-detection models need a GPU; scoped, not run.", "A stated limit.", "planned", "plan"]
+  ],
+  decisions: [["Soft labels tested against hard labels", "002"]],
+  results: [["Radar gain, + Morocco", "≥ +5 points", "−9.6", "no"], ["Radar gain, soft labels only", "≥ +5 points", "−6.2", "no"]],
+  obstacles: [["Radar fusion broke on Morocco", "Collapsed mud-brick reflects radar differently from collapsed concrete", "Kept Turkey + Noto for the headline", "Test transfer per construction type"],
+              ["Phase 3b recorded as −11.4 points", "A subtraction error in the write-up", "Corrected to −6.2 from the run files (11 Nov 2026)", "Generate result tables from files"]],
+  lessons: ["Radar transfers worse across construction types than optical does."],
+  star: "Adding Morocco showed radar fusion does not transfer across building types, and I found and fixed a reporting error later."
+},
+{
+  id: "p6", tag: "P5", name: "Pages and CI", dates: "11 Nov 2026", verdict: ["pass", "passed"],
+  scqa: ["Readers skim; reviewers audit.", "Results lived in long README tables and a dashboard.",
+         "Can both find the answer fast, every number explained?", "Yes: a brief first, a results page with a phase slider, this walkthrough, and browser tests in CI."],
+  steps: [
+    ["Platform & CI", "Brief", "What, why, who, where, when it fails and how, from one source file.", "Rule R22.", "docs/brief.yaml"],
+    ["Serving & UI", "Results page", "Problem, data, approach, a phase-by-phase what-if and per-class results.", "Readable in about two minutes.", "docs/index.html"],
+    ["Serving & UI", "Walkthrough", "This page: every phase, pass or fail.", "For technical review.", "docs/build.html"],
+    ["Platform & CI", "CI", "Lint, tests, brief check and browser tests; Pages deploy only after they pass.", "Rule R19.", ".github/workflows/ci.yml"]
+  ],
+  decisions: [], results: [["Browser checks", "all pass", "all pass", "ok"]], obstacles: [],
+  lessons: ["A negative result needs the same care on the page as a positive one."],
+  star: "The page shows six phases, none passing, and lets a reader step through why."
+}];
+
+const MAP = {
+  "Data (BRIGHT)": {p1: ["Selective download"], p2: ["+ Beirut"], p3: ["Turkey + Noto"], p5: ["+ Morocco"]},
+  "Labels": {p1: ["Tile labels"], p5: ["Soft labels"]},
+  "Model": {p1: ["4-layer CNN twins"], p3: ["ResNet-18"], p4: ["Gated radar", "Lovász loss"], p5: ["Patience fix"]},
+  "Evaluation": {p1: ["5-point gate"], p2: ["Mixed events"], p3: ["Per-class F1"], p4: ["Validation vs test"], p5: ["Two tests"]},
+  "Serving & UI": {p1: ["Dashboard"], p4: ["Grad-CAM"], p6: ["Results page", "Walkthrough"]},
+  "Platform & CI": {p6: ["Brief", "CI + gated Pages"]},
+  "Decision": {p1: ["Gate first"], p5: ["Pixel-level next"]}
+};
+
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const tip = $("#tip");
+function showTip(e, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect(), x = (e.clientX ?? e.x) + 14, y = (e.clientY ?? e.y) + 14;
+  tip.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + "px";
+  tip.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + "px";
+}
+function hideTip() { tip.hidden = true; }
+const chip = v => `<span class="chip ${v[0]}">${esc(v[1])}</span>`;
+const adrLink = n => `<a href="${REPO}${ADR[n]}">ADR-${n}</a>`;
+const fileLink = f => f === "planned" ? '<span class="muted">planned</span>'
+  : f.split(" · ").map(x => /^(ADR|CHANGELOG)/.test(x) ? esc(x) : `<code>${esc(x)}</code>`).join(" · ");
+
+function renderMap() {
+  const head = `<thead><tr><th>Layer</th>${PHASES.map(p => `<th class="ph" data-id="${p.id}" tabindex="0" title="Open ${p.tag}">${p.tag}<br><span class="muted" style="text-transform:none;font-weight:500">${esc(p.name.split(" ")[0])}…</span></th>`).join("")}</tr></thead>`;
+  const rows = Object.keys(MAP).map(lane => `<tr><td class="lane">${esc(lane)}</td>${PHASES.map(p =>
+    `<td class="cell" data-id="${p.id}">${(MAP[lane][p.id] || []).map(t => `<span>${esc(t)}</span>`).join("") || '<span class="muted">·</span>'}</td>`).join("")}</tr>`).join("");
+  $("#map").innerHTML = head + "<tbody>" + rows + "</tbody>";
+  $("#map").querySelectorAll("th.ph, td.cell").forEach(el => {
+    const p = PHASES.find(x => x.id === el.dataset.id);
+    el.addEventListener("click", () => select(p.id, true));
+    el.addEventListener("keydown", e => { if (e.key === "Enter") select(p.id, true); });
+    el.addEventListener("mousemove", e => showTip(e, `<b>${esc(p.tag)} · ${esc(p.name)}</b>${esc(p.verdict[1])}. Click to open.`));
+    el.addEventListener("mouseleave", hideTip);
+  });
+}
+function renderPicker() {
+  $("#picker").innerHTML = PHASES.map(p => `<button role="tab" data-id="${p.id}" aria-selected="false">${p.tag} ${chip(p.verdict)}<small>${esc(p.name)}</small></button>`).join("");
+  $("#picker").querySelectorAll("button").forEach(b => b.addEventListener("click", () => select(b.dataset.id, false)));
+}
+const COL = 150, BOX_W = 132, BOX_H = 62, LANE_H = 86, LABEL_W = 132, PAD = 14;
+function wrap(text, max) {
+  const words = text.split(" "), lines = []; let cur = "";
+  for (const w of words) { if ((cur + " " + w).trim().length > max && cur) { lines.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }
+  if (cur) lines.push(cur); return lines.slice(0, 3);
+}
+function renderSwim(p, state) {
+  const lanes = LANES.filter(l => p.steps.some(s => s[0] === l));
+  const W = LABEL_W + p.steps.length * COL + PAD, H = lanes.length * LANE_H;
+  const pos = p.steps.map((s, i) => ({x: LABEL_W + i * COL + (COL - BOX_W) / 2, y: lanes.indexOf(s[0]) * LANE_H + (LANE_H - BOX_H) / 2}));
+  let svg = `<svg class="swim" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(p.tag)} build steps by layer">
+    <defs><marker id="ah-${p.id}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="arrowhead" d="M0,0 L8,4 L0,8 z"/></marker></defs>`;
+  lanes.forEach((l, i) => {
+    svg += `<rect class="lane-bg${i % 2 ? " alt" : ""}" x="0" y="${i * LANE_H}" width="${W}" height="${LANE_H}"/>`;
+    svg += `<line class="lane-line" x1="0" x2="${W}" y1="${(i + 1) * LANE_H}" y2="${(i + 1) * LANE_H}"/>`;
+    wrap(l, 14).forEach((t, k, arr) => svg += `<text class="lane-label" x="12" y="${i * LANE_H + LANE_H / 2 + (k - (arr.length - 1) / 2) * 14 + 4}">${esc(t)}</text>`);
+  });
+  for (let i = 0; i < pos.length - 1; i++) {
+    const a = pos[i], b = pos[i + 1], x1 = a.x + BOX_W, y1 = a.y + BOX_H / 2, x2 = b.x - 2, y2 = b.y + BOX_H / 2, mx = (x1 + x2) / 2;
+    svg += `<path class="edge" marker-end="url(#ah-${p.id})" d="M${x1},${y1} H${mx} V${y2} H${x2}"/>`;
+  }
+  p.steps.forEach((s, i) => {
+    const {x, y} = pos[i], kind = s[5] ? ` kind-${s[5]}` : "", cls = i === state.i ? " current" : i < state.i ? " done" : "";
+    svg += `<g class="step${kind}${cls}" data-i="${i}" tabindex="0" role="button" aria-label="Step ${i + 1}: ${esc(s[1])}">
+      <rect x="${x}" y="${y}" width="${BOX_W}" height="${BOX_H}" rx="8"/>
+      <text class="num" x="${x + 9}" y="${y + 16}">${i + 1}</text>
+      ${wrap(s[1], 16).map((t, k) => `<text x="${x + 24}" y="${y + 17 + k * 15}">${esc(t)}</text>`).join("")}</g>`;
+  });
+  return svg + "</svg>";
+}
+function stepDetail(p, i) {
+  const s = p.steps[i], kind = {fail: "Where it failed", fix: "A fix", plan: "Planned"}[s[5]] || "";
+  return `<div class="detail" aria-live="polite"><span class="eyebrow">Step ${i + 1} of ${p.steps.length} · ${esc(s[0])}${kind ? " · " + kind : ""}</span>
+    <h3>${esc(s[1])}</h3><div class="kv"><b>What</b><span>${esc(s[2])}</span><b>Why</b><span>${esc(s[3])}</span><b>Where</b><span>${fileLink(s[4])}</span></div></div>`;
+}
+const state = {id: PHASES[0].id, i: 0};
+function renderPhase() {
+  const p = PHASES.find(x => x.id === state.id);
+  const scqa = ["Situation", "Complication", "Question", "Answer"].map((h, k) => `<div><b>${h}</b><p>${esc(p.scqa[k])}</p></div>`).join("");
+  const res = p.results.map(r => `<tr><td>${esc(r[0])}</td><td class="mono">${esc(r[1])}</td><td class="mono">${esc(r[2])}</td><td>${
+    r[3] === "ok" ? '<span class="verdict-ok">pass</span>' : r[3] === "no" ? '<span class="verdict-no">fail</span>' : r[3] === "wait" ? '<span class="verdict-wait">pending</span>' : '<span class="muted">info</span>'}</td></tr>`).join("");
+  const obs = p.obstacles.length ? `<div class="part box"><span class="eyebrow">Obstacles · symptom → root cause → fix → prevention</span>
+    <div class="scroll"><table class="obst"><thead><tr><th>Symptom</th><th>Root cause</th><th>Fix</th><th>Prevention</th></tr></thead><tbody>${
+    p.obstacles.map(o => `<tr>${o.map((c, k) => `<td data-label="${["Symptom", "Root cause", "Fix", "Prevention"][k]}">${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>` : "";
+  $("#phase").innerHTML = `
+    <div class="part ph-top"><div class="phase-head"><h2>${esc(p.tag)} · ${esc(p.name)}</h2>${chip(p.verdict)}<span class="dates">${esc(p.dates)}</span></div>
+    <div class="scqa">${scqa}</div></div>
+    <div class="part lanewrap">
+      <div class="walk"><span class="eyebrow">Build steps</span>
+        <button type="button" id="prev">◀ Prev</button><button type="button" class="primary" id="next">Next ▶</button>
+        <span class="pos" id="pos"></span></div>
+      <div class="scroll" id="swim"></div>
+      <div class="lane-legend"><span><i></i>step</span><span><i class="fail"></i>where it failed</span><span><i class="fix"></i>a fix</span><span><i class="plan"></i>planned</span><span>Hover a step for a summary; click or use Next for details.</span></div>
+      <div id="detail"></div>
+    </div>
+    <div class="part two">
+      <div class="box"><span class="eyebrow">Result vs gate (set before the work)</span>
+        <div class="scroll"><table><thead><tr><th>Check</th><th>Target</th><th>Result</th><th></th></tr></thead><tbody>${res}</tbody></table></div></div>
+      <div class="box"><span class="eyebrow">Key decisions</span>${p.decisions.length ? `<ul class="points">${p.decisions.map(d => `<li>${esc(d[0])} · ${adrLink(d[1])}</li>`).join("")}</ul>` : '<p class="muted">Decided in the phase\'s ADR, before the work.</p>'}
+        ${p.lessons.length ? `<span class="eyebrow">Lessons learned</span><ul class="points">${p.lessons.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : ""}</div>
+    </div>
+    ${obs}
+    ${p.star ? `<div class="part box"><span class="eyebrow">STAR talking point</span><p class="star">“${esc(p.star)}”</p></div>` : ""}`;
+  $("#prev").addEventListener("click", () => step(-1));
+  $("#next").addEventListener("click", () => step(1));
+  drawSteps();
+}
+function drawSteps() {
+  const p = PHASES.find(x => x.id === state.id);
+  $("#swim").innerHTML = renderSwim(p, state);
+  $("#detail").innerHTML = stepDetail(p, state.i);
+  $("#pos").textContent = `Step ${state.i + 1} of ${p.steps.length}`;
+  $("#prev").disabled = state.i === 0; $("#next").disabled = state.i === p.steps.length - 1;
+  $("#swim").querySelectorAll("g.step").forEach(g => {
+    const s = p.steps[+g.dataset.i];
+    const go = () => { state.i = +g.dataset.i; drawSteps(); $(`#swim g.step[data-i="${state.i}"]`).focus({preventScroll: true}); };
+    g.addEventListener("click", go);
+    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    g.addEventListener("mousemove", e => showTip(e, `<b>${+g.dataset.i + 1}. ${esc(s[1])}</b>${esc(s[2])}`));
+    g.addEventListener("mouseleave", hideTip);
+    g.addEventListener("focus", () => { const r = g.getBoundingClientRect(); showTip({clientX: r.left, clientY: r.bottom}, `<b>${+g.dataset.i + 1}. ${esc(s[1])}</b>${esc(s[2])}`); });
+    g.addEventListener("blur", hideTip);
+  });
+  const cur = $("#swim g.step.current");
+  if (cur) { const box = $("#swim"), r = cur.getBoundingClientRect(), b = box.getBoundingClientRect();
+    if (r.left < b.left || r.right > b.right) box.scrollLeft += r.left - b.left - 40; }
+}
+function step(d) { const p = PHASES.find(x => x.id === state.id); state.i = Math.max(0, Math.min(p.steps.length - 1, state.i + d)); hideTip(); drawSteps(); }
+function select(id, scroll) {
+  state.id = id; state.i = 0; hideTip();
+  document.querySelectorAll("#picker button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.id === id)));
+  document.querySelectorAll("#map th.ph, #map td.cell").forEach(el => el.classList.toggle("on", el.dataset.id === id));
+  renderPhase();
+  try { history.replaceState(null, "", "#" + id); } catch (e) { /* sandboxed viewers */ }
+  if (scroll) $("#h-phase").scrollIntoView({behavior: "smooth", block: "start"});
+}
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input, textarea")) return;
+  if (e.key === "ArrowRight") step(1); else if (e.key === "ArrowLeft") step(-1);
+});
+addEventListener("scroll", hideTip, {passive: true});
+$("#updated").textContent = P.updated;
+renderMap(); renderPicker();
+const start = (location.hash || "").slice(1);
+select(PHASES.some(p => p.id === start) ? start : PHASES[0].id, false);
+</script>

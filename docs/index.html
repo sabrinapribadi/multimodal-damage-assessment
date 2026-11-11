@@ -1,0 +1,242 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Radar for Damage Mapping</title>
+<!-- share preview (portfolio rule R18) -->
+<meta name="description" content="Does adding radar (SAR) to optical satellite images rate earthquake building damage better? Six pre-registered phases on the public BRIGHT dataset.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sabrinapribadi.github.io/multimodal-damage-assessment/">
+<meta property="og:title" content="Radar for Damage Mapping">
+<meta property="og:description" content="Does adding radar (SAR) to optical satellite images rate earthquake building damage better? Six pre-registered phases on the public BRIGHT dataset.">
+<meta property="og:image" content="https://sabrinapribadi.github.io/multimodal-damage-assessment/assets/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="627">
+<meta property="og:image:alt" content="Top of the Radar for Damage Mapping page">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /share preview -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+/* Results page (portfolio rules R3, R9, R10, R12). Generated from the shared results template. */
+:root {
+  --bg: #f5f4f0; --surface: #fffefb; --fg: #1d1f21; --muted: #5f6368; --line: #e2e0d8; --tint: #eceae3;
+  --accent: #3949a3; --accent-soft: #e1e4f6;
+  --ok: #2c7a4b; --bad: #b23a2a; --c1: #3949a3; --c2: #b06a1f; --c3: #6b5ca5; --c4: #8a8f96;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15171a; --surface: #1d2024; --fg: #e8e6e1; --muted: #a2a6ab; --line: #2f3338; --tint: #24282c;
+  --accent: #9aa6f0; --accent-soft: #1e2340; --ok: #6fc28f; --bad: #e88a7a; --c1: #9aa6f0; --c2: #e0a35f; --c3: #a99be0; --c4: #8d939a;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #15171a; --surface: #1d2024; --fg: #e8e6e1; --muted: #a2a6ab; --line: #2f3338; --tint: #24282c;
+  --accent: #9aa6f0; --accent-soft: #1e2340; --ok: #6fc28f; --bad: #e88a7a; --c1: #9aa6f0; --c2: #e0a35f; --c3: #a99be0; --c4: #8d939a;
+  color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); }
+[hidden] { display: none !important; }
+a { color: var(--accent); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; }
+.eyebrow { font: 600 11.5px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 700 clamp(28px, 4.2vw, 40px)/1.15 var(--font-head); margin: 6px 0 4px; text-wrap: balance; }
+h2 { font: 700 24px/1.2 var(--font-head); margin: 0; text-wrap: balance; }
+h3 { font-size: 16px; margin: 0; }
+.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 18px; font-size: 14px; }
+.toc a { text-decoration: none; }
+.toc .n { display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 5px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 600 11px var(--font-mono); }
+section.block { margin-top: 40px; display: grid; gap: 14px; }
+.sec-head { display: flex; align-items: baseline; gap: 10px; }
+.sec-head .n { font: 600 13px var(--font-mono); color: var(--accent); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.cols > * { min-width: 0; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+ul.points { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13.5px; }
+.flow span { background: var(--tint); border-radius: 6px; padding: 4px 8px; }
+.flow span.now { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.flow i { color: var(--muted); font-style: normal; }
+.scroll { overflow-x: auto; max-width: 100%; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11.5px var(--font-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.chosen { color: var(--accent); font-weight: 600; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; }
+.tile b { font: 600 26px/1.1 var(--font-mono); color: var(--accent); }
+.tile span { font-size: 13.5px; color: var(--muted); }
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; }
+.chart .sub { font-size: 13px; color: var(--muted); margin: 0; }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart svg text { fill: var(--fg); font: 12px var(--font-body); }
+.chart svg text.dim { fill: var(--muted); }
+.chart svg .axis { stroke: var(--line); }
+.chart svg [data-tip] { cursor: default; outline: none; }
+.chart svg [data-tip]:focus-visible { stroke: var(--fg); stroke-width: 2; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 3px; margin-right: 5px; vertical-align: middle; border-radius: 2px; }
+.slider { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13.5px; }
+.slider input { flex: 1 1 220px; accent-color: var(--accent); }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+details > summary { cursor: pointer; font-weight: 600; }
+details > .body { display: grid; gap: 10px; margin-top: 10px; font-size: 14px; }
+.faq { display: grid; gap: 8px; }
+dl.gloss { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 14px; }
+dl.gloss dt { font-weight: 600; } dl.gloss dd { margin: 0; }
+.tip { position: fixed; z-index: 10; max-width: 300px; background: var(--fg); color: var(--bg); font-size: 12.5px; line-height: 1.45; padding: 8px 10px; border-radius: 8px; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.tip b { display: block; margin-bottom: 2px; }
+footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
+@media (max-width: 560px) { .wrap { padding-inline: 16px; } dl.gloss { grid-template-columns: 1fr; } }
+/* brief:css:start (rule R22, written by scripts/brief.py) */
+.brief { display: grid; gap: 12px; padding-block: 18px 4px; text-align: left; }
+.brief a { color: var(--accent); }
+.brief-list { list-style: none; margin: 0; padding: 0 !important; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+.brief-list li { display: grid; align-content: start; gap: 4px; padding: 12px 14px; min-width: 0;
+  background: var(--surface); border: 1px solid var(--line, var(--border)); border-radius: 8px; }
+.brief-w { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.brief-main { font-size: 14.5px; line-height: 1.45; color: var(--fg, var(--text)); }
+.brief-sub { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.brief-skills summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.brief-skills ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.45; }
+.brief-proof { font-size: 12px; margin-left: 4px; white-space: nowrap; }
+/* brief:css:end */
+</style>
+
+<div class="wrap">
+<header class="top">
+  <span class="eyebrow">Disaster response · remote sensing · computer vision</span>
+  <h1>Does radar make post-earthquake damage maps more accurate?</h1>
+<!-- brief:start -->
+<section class="brief" id="brief" aria-label="Project at a glance"><span class="eyebrow">At a glance</span><ol class="brief-list"><li><span class="brief-w">1 · What</span><span class="brief-main">A deep-learning model that rates building damage from satellite images after earthquakes, fusing optical and radar (SAR) images.</span></li><li><span class="brief-w">2 · Why</span><span class="brief-main">Responders need damage maps within hours, but clouds, smoke and night block optical images; radar sees through them.</span></li><li><span class="brief-w">3 · Who</span><span class="brief-main">Users: disaster responders and damage analysts.</span><span class="brief-sub">Data: the public BRIGHT dataset (Hugging Face): pre-event optical and post-event radar tiles, labelled intact, damaged or destroyed.</span></li><li><span class="brief-w">4 · Where</span><span class="brief-main"><a href="https://sabrinapribadi.github.io/multimodal-damage-assessment/">Results page</a> and <a href="https://sabrinapribadi.github.io/multimodal-damage-assessment/build.html">technical walkthrough</a> on GitHub Pages; <a href="https://multimodal-damage-assessment-d3dyfacsb2zwiqhtgovrsb.streamlit.app/">tile dashboard</a> on Streamlit Community Cloud, no model at runtime.</span></li><li><span class="brief-w">5 · When it fails</span><span class="brief-main">Gate set first: radar must add ≥ 5 points of macro F1. Never met in six phases; best +2.2 points; adding Morocco gave −9.6.</span><span class="brief-sub">No live A/B test: an offline ablation scores the same tiles with and without radar on validation and test splits.</span></li><li><span class="brief-w">6 · How</span><span class="brief-main">ResNet-18 with an optical-gated radar branch and a Lovász loss, against an optical-only twin on identical tiles.</span><span class="brief-sub">Result: macro F1 0.580 vs 0.558 on validation, but optical-only wins on test (0.512 vs 0.454); macro F1 averages the three damage classes.</span></li></ol><details class="brief-skills" open><summary>Skills applied, with proof</summary><ul><li><b>Computer vision</b> ResNet-18 backbone, gated two-image fusion, Lovász-Softmax loss <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/src/models/baseline_model.py">baseline_model.py</a> <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-005-encoder-architecture.md">ADR-005</a></li><li><b>Remote sensing</b> optical and SAR tiles, tile labels from building footprints <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-002-tile-label-derivation.md">ADR-002</a> <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-004-backbone-and-sar-adaptation.md">ADR-004</a></li><li><b>Data engineering</b> selective download from a 13 GB zip with HTTP range requests <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/scripts/download_events.py">download_events.py</a></li><li><b>Experiment design</b> pre-registered ablation gate, negative results reported phase by phase <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-001-task-framing.md">ADR-001</a> <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-003-validation-strategy.md">ADR-003</a></li><li><b>MLOps and CI</b> precomputed results for a free dashboard; CI on every push <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/docs/adr/ADR-006-deployment-and-output.md">ADR-006</a> <a class="brief-proof" href="https://github.com/sabrinapribadi/multimodal-damage-assessment/blob/main/.github/workflows/ci.yml">ci.yml</a></li></ul></details></section>
+<!-- brief:end -->
+
+  <nav class="toc" aria-label="Sections">
+    <a href="#problem"><span class="n">1</span>Problem</a><a href="#data"><span class="n">2</span>Data</a><a href="#approach"><span class="n">3</span>Approach</a>
+    <a href="#solution"><span class="n">4</span>Solution</a><a href="#take"><span class="n">5</span>Our take</a><a href="build.html">Technical walkthrough →</a>
+  </nav>
+</header>
+<main id="page"></main>
+<footer id="foot"></footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script>
+const PAGE = {"problem": {"points": ["After an earthquake, responders need a building-damage map fast, to send search teams and aid.", "Optical satellite images are blocked by cloud, smoke and night; **radar (SAR)** sees through them.", "The question: does adding radar to optical images rate building damage more accurately?"], "today": ["Wait for a clear optical pass", "Analysts rate tiles by eye", "Map once the weather clears"], "project": ["Pre-event optical + post-event radar", "Model rates each tile", "Same tiles without radar"], "need": "What a responder needs: whether radar makes the map more accurate, by how much, and where it fails."}, "data": {"head": ["Item", "Value"], "rows": [["Source", "BRIGHT dataset (Chen et al. 2025, Earth System Science Data), public on Hugging Face"], ["Events", "Turkey 2023 and Noto 2024 earthquakes (headline); Beirut 2020 explosion and Morocco 2023 earthquake tested"], ["Tiles (headline)", "1,151: 802 train, 118 validation, 231 test"], ["Inputs", "Pre-event optical (3 bands) and post-event radar (1 band), 224 × 224 pixels"], ["Labels", "Intact, damaged or destroyed per tile, from building footprints (ADR-002)"], ["Gate", "Radar must add at least 5 points of validation macro F1 (ADR-003)"], ["Leakage guard", "Separate train, validation and test tiles; both models see the same ones"]]}, "dataNotes": ["**Macro F1:** the average F1 over intact, damaged and destroyed, so rare classes count as much as common ones; 1 is perfect. A point is 0.01."], "pipeline": ["Download only needed tiles", "Label tiles from footprints", "Optical-only model", "Optical + radar model", "Same tiles, same split", "Gate: +5 points"], "choices": {"head": ["Choice", "Tried", "Chose", "Deciding number"], "chosen": 2, "rows": [["Fusion", "Simple fusion (2b); optical-gated radar (3)", "Optical-gated radar", "+2.2 points vs −3.1"], ["Backbone", "Custom 4-layer CNN; pretrained ResNet-18", "ResNet-18", "Validation macro F1 0.39–0.44 (CNN) vs 0.56–0.63 (ResNet); event sets differ"], ["Labels", "Hard labels; soft labels (3b, 4)", "Hard labels", "Soft labels: 0.283 vs 0.580 with radar"], ["Events", "Turkey; + Beirut; + Noto; + Morocco", "Turkey + Noto", "Adding Morocco: radar −9.6 points"], ["Hosting", "Live model; precomputed results", "Precomputed results", "The dashboard runs without a model or GPU"]]}, "tiles": [["+2.2 points", "best radar gain on validation (Phase 3); the bar set first was +5"], ["0 of 6", "phases where radar met the bar"], ["−5.8 points", "radar on the test tiles in Phase 3: optical-only wins (0.512 vs 0.454)"]], "charts": [{"kind": "steps", "id": "phases", "title": "What-if: step through the six phases", "sub": "Validation macro F1 with and without radar on the same tiles (1 is perfect). The bar, set first: radar must add 5 points. Hover a bar.", "sliderLabel": "Phase", "start": 3, "max": 0.7, "panels": [{"label": "Phase 1: Turkey", "bars": [{"label": "Optical + radar", "v": 0.409, "text": "0.409", "color": "c1", "tip": ["custom 4-layer CNN", "Validation macro F1 0.409"]}, {"label": "Optical only", "v": 0.392, "text": "0.392", "color": "c4", "tip": ["custom 4-layer CNN", "Validation macro F1 0.392"]}], "note": "**Radar +1.7 points** (bar +5). Radar helps a little; below the bar."}, {"label": "Phase 1.5: Turkey + Beirut", "bars": [{"label": "Optical + radar", "v": 0.421, "text": "0.421", "color": "c1", "tip": ["custom 4-layer CNN", "Validation macro F1 0.421"]}, {"label": "Optical only", "v": 0.443, "text": "0.443", "color": "c4", "tip": ["custom 4-layer CNN", "Validation macro F1 0.443"]}], "note": "**Radar -2.2 points** (bar +5). An explosion and an earthquake look different on radar: radar hurts."}, {"label": "Phase 2b: Turkey + Noto", "bars": [{"label": "Optical + radar", "v": 0.597, "text": "0.597", "color": "c1", "tip": ["ResNet-18, simple fusion", "Validation macro F1 0.597"]}, {"label": "Optical only", "v": 0.628, "text": "0.628", "color": "c4", "tip": ["ResNet-18, simple fusion", "Validation macro F1 0.628"]}], "note": "**Radar -3.1 points** (bar +5). Radar helps destroyed buildings (+6.4) but hurts damaged ones (−16.7)."}, {"label": "Phase 3: Turkey + Noto", "bars": [{"label": "Optical + radar", "v": 0.58, "text": "0.580", "color": "c1", "tip": ["ResNet-18, optical-gated radar", "Validation macro F1 0.580"]}, {"label": "Optical only", "v": 0.558, "text": "0.558", "color": "c4", "tip": ["ResNet-18, optical-gated radar", "Validation macro F1 0.558"]}], "note": "**Radar +2.2 points** (bar +5). Best result: the gate lets optical decide when to trust radar."}, {"label": "Phase 4: + Morocco", "bars": [{"label": "Optical + radar", "v": 0.396, "text": "0.396", "color": "c1", "tip": ["gated radar, soft labels", "Validation macro F1 0.396"]}, {"label": "Optical only", "v": 0.492, "text": "0.492", "color": "c4", "tip": ["gated radar, soft labels", "Validation macro F1 0.492"]}], "note": "**Radar -9.6 points** (bar +5). Rural mud-brick collapses look different on radar: fusion breaks."}, {"label": "Phase 3b: Turkey + Noto", "bars": [{"label": "Optical + radar", "v": 0.283, "text": "0.283", "color": "c1", "tip": ["gated radar, soft labels", "Validation macro F1 0.283"]}, {"label": "Optical only", "v": 0.345, "text": "0.345", "color": "c4", "tip": ["gated radar, soft labels", "Validation macro F1 0.345"]}], "note": "**Radar -6.2 points** (bar +5). Soft labels hurt both models at tile level."}]}, {"kind": "dumbbell", "id": "perclass", "title": "Phase 3, by damage class (validation F1)", "sub": "Orange: optical only. Indigo: optical + radar. Radar helps intact and damaged buildings, not destroyed ones. Hover a dot.", "aLabel": "Optical only", "bLabel": "Optical + radar", "rows": [{"label": "Intact", "a": 0.789, "b": 0.827, "tip": ["Radar +3.8 points"]}, {"label": "Damaged", "a": 0.286, "b": 0.333, "tip": ["Radar +4.7 points", "The hardest class: partly standing"]}, {"label": "Destroyed", "a": 0.6, "b": 0.581, "tip": ["Radar −1.9 points"]}]}], "caveats": ["**Small test set:** 231 tiles (10 from Noto), so a handful of tiles moves macro F1 by points.", "**Validation and test disagree:** radar helps on validation (+2.2) but optical-only wins on test (−5.8).", "**Radar did not transfer** to Morocco's rural mud-brick buildings (−9.6 points).", "**Tile-level only:** pixel-level damage models need GPU training (scoped as Phase 5, not run)."], "faq": [["So does radar help?", "Not reliably here: +2.2 points at best on validation, below the +5 bar, and negative on test."], ["Why does Morocco break it?", "Radar echoes from collapsed mud-brick differ from collapsed concrete; fusion learned on Turkey and Noto did not transfer."], ["What might clear the bar?", "Pixel-level damage models trained on a GPU; scoped as Phase 5 and not run."], ["Can I see the tiles?", "Yes: the [dashboard](https://multimodal-damage-assessment-d3dyfacsb2zwiqhtgovrsb.streamlit.app/) shows every validation and test tile with its optical and radar images and both models' predictions."], ["Was any number corrected?", "Yes: Phase 3b's radar effect was recorded as −11.4 points; the run files give −6.2, now used everywhere."]], "take": ["**Use optical images when they exist;** in these tests radar did not reliably improve the damage map.", "**Radar's value is availability, not accuracy:** keep it for cloudy or night passes, and test it per region.", "**Report negative results:** six phases, none passed, and the reason each one failed is on the walkthrough."], "changeMind": ["Pixel-level training on a GPU that gains 5 points or more with radar.", "A larger test set where validation and test agree."], "more": [{"id": "more-appendix", "title": "Technical appendix: every phase, validation and test", "table": {"head": ["Phase", "Events", "Model", "Val, + radar", "Val, optical", "Radar (points)", "Test, + radar", "Test, optical"], "num": [3, 4, 5, 6, 7], "rows": [["Phase 1", "Turkey", "custom 4-layer CNN", "0.409", "0.392", "+1.7", "—", "—"], ["Phase 1.5", "Turkey + Beirut", "custom 4-layer CNN", "0.421", "0.443", "-2.2", "—", "0.438"], ["Phase 2b", "Turkey + Noto", "ResNet-18, simple fusion", "0.597", "0.628", "-3.1", "0.607", "0.479"], ["Phase 3", "Turkey + Noto", "ResNet-18, optical-gated radar", "0.580", "0.558", "+2.2", "0.454", "0.512"], ["Phase 4", "+ Morocco", "gated radar, soft labels", "0.396", "0.492", "-9.6", "0.450", "0.490"], ["Phase 3b", "Turkey + Noto", "gated radar, soft labels", "0.283", "0.345", "-6.2", "0.301", "0.281"]]}, "points": ["Phase 3 recomputed from data/inference_results.parquet (the committed predictions); Phase 3b from the run metadata in outputs/.", "Loss: cross-entropy plus Lovász-Softmax; augmentation: paired flips and rotations, optical colour jitter."]}, {"id": "more-glossary", "title": "Glossary", "gloss": [["SAR (radar)", "Synthetic aperture radar: a satellite sensor that images through cloud, smoke and darkness."], ["Optical image", "An ordinary colour satellite photo; blocked by cloud and night."], ["Tile", "A 224 × 224-pixel square of the image, rated intact, damaged or destroyed."], ["Macro F1", "The average F1 over the three damage classes; 1 is perfect."], ["Gate", "The pass mark set before the work: radar must add 5 points."], ["Fusion", "How optical and radar features are combined in one model."], ["Soft labels", "Labels as shares of damaged pixels instead of one class per tile."]]}], "footer": ["Data: BRIGHT (Chen et al. 2025). Every number comes from the README result tables, data/inference_results.parquet and outputs/.", "Sabrina Pribadi · last updated 11 Nov 2026 · [technical walkthrough](build.html) · [code and ADRs](https://github.com/sabrinapribadi/multimodal-damage-assessment)"]};
+</script>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+const tip = $("#tip");
+function showTip(e, h) { tip.innerHTML = h; tip.hidden = false; const r = tip.getBoundingClientRect(), x = (e.clientX ?? 0) + 14, y = (e.clientY ?? 0) + 14;
+  tip.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + "px"; tip.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + "px"; }
+function hideTip() { tip.hidden = true; }
+function wire(root) {
+  root.querySelectorAll("[data-tip]").forEach(el => {
+    el.setAttribute("tabindex", "0");
+    el.addEventListener("mousemove", e => showTip(e, el.dataset.tip));
+    el.addEventListener("mouseleave", hideTip);
+    el.addEventListener("focus", () => { const r = el.getBoundingClientRect(); showTip({clientX: r.left, clientY: r.bottom}, el.dataset.tip); });
+    el.addEventListener("blur", hideTip);
+  });
+}
+addEventListener("scroll", hideTip, {passive: true});
+const tipText = (title, lines) => `<b>${esc(title)}</b>${lines.map(esc).join("<br>")}`;
+
+function bars(c) {
+  const W = 720, rowH = 26, L = 190, R = 70, H = c.rows.length * rowH + 30, max = c.max ?? Math.max(...c.rows.map(r => r.v)) * 1.08;
+  const x = v => L + (W - L - R) * v / max;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c.title)}">`;
+  if (c.ref != null) s += `<line class="axis" x1="${x(c.ref)}" x2="${x(c.ref)}" y1="0" y2="${H - 22}" stroke-dasharray="4 3"/><text class="dim" x="${x(c.ref) + 4}" y="${H - 8}">${esc(c.refLabel || "")}</text>`;
+  c.rows.forEach((r, i) => {
+    const y = i * rowH + 4;
+    s += `<text x="${L - 8}" y="${y + 15}" text-anchor="end">${esc(r.label)}</text>`;
+    s += `<rect x="${L}" y="${y + 3}" width="${Math.max(2, x(r.v) - L)}" height="${rowH - 9}" rx="3" fill="var(--${r.color || "c4"})" data-tip="${esc(tipText(r.label, r.tip))}"/>`;
+    s += `<text x="${x(r.v) + 6}" y="${y + 15}" class="dim">${esc(r.text ?? r.v)}</text>`;
+  });
+  return s + "</svg>";
+}
+function dumbbell(c) {
+  const W = 720, rowH = 30, L = 150, R = 30, H = c.rows.length * rowH + 34, max = Math.max(...c.rows.flatMap(r => [r.a, r.b])) * 1.05;
+  const x = v => L + (W - L - R) * v / max;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c.title)}">`;
+  c.rows.forEach((r, i) => {
+    const y = i * rowH + 16;
+    s += `<text x="${L - 8}" y="${y + 4}" text-anchor="end">${esc(r.label)}</text>`;
+    s += `<line x1="${x(r.a)}" x2="${x(r.b)}" y1="${y}" y2="${y}" stroke="var(--c4)" stroke-width="2"/>`;
+    s += `<circle cx="${x(r.a)}" cy="${y}" r="6" fill="var(--c2)" data-tip="${esc(tipText(r.label, [c.aLabel + ": " + r.a.toFixed(2), ...(r.tip || [])]))}"/>`;
+    s += `<circle cx="${x(r.b)}" cy="${y}" r="6" fill="var(--c1)" data-tip="${esc(tipText(r.label, [c.bLabel + ": " + r.b.toFixed(2), ...(r.tip || [])]))}"/>`;
+  });
+  return s + `</svg><div class="legend"><span><i style="background:var(--c2)"></i>${esc(c.aLabel)}</span><span><i style="background:var(--c1)"></i>${esc(c.bLabel)}</span></div>`;
+}
+function seriesView(c, idx) {
+  const W = 720, H = 260, L = 44, R = 12, T = 12, B = 30, p = c.panels[idx], n = p.truth.length;
+  const all = [p.truth, ...c.series.map(s => p[s.key])].flat(), lo = Math.min(...all) - 0.5, hi = Math.max(...all) + 0.5;
+  const x = i => L + (W - L - R) * i / (n - 1), y = v => T + (H - T - B) * (hi - v) / (hi - lo);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c.title)}">`;
+  for (let k = 0; k <= 4; k++) { const v = lo + (hi - lo) * k / 4; s += `<line class="axis" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="dim" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${(Math.round(v) || 0).toString().replace("-", "−")}</text>`; }
+  [0, 6, 12, 18, 23].forEach(i => s += `<text class="dim" x="${x(i)}" y="${H - 10}" text-anchor="${i === 0 ? "start" : i === 23 ? "end" : "middle"}">+${i + 1} h</text>`);
+  const path = (arr, col, w, dash) => `<path d="${arr.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join("")}" fill="none" stroke="var(--${col})" stroke-width="${w}" ${dash ? 'stroke-dasharray="5 4"' : ""}/>`;
+  s += path(p.truth, "fg", 2.2, false);
+  c.series.forEach(se => s += path(p[se.key], se.color, 2, true));
+  for (let i = 0; i < n; i++) {
+    const lines = [`Actual: ${p.truth[i].toFixed(1)} ${c.unit}`, ...c.series.map(se => `${se.label}: ${p[se.key][i].toFixed(1)} ${c.unit} (off by ${Math.abs(p[se.key][i] - p.truth[i]).toFixed(1)})`)];
+    s += `<rect x="${x(i) - (W - L - R) / (n - 1) / 2}" y="${T}" width="${(W - L - R) / (n - 1)}" height="${H - T - B}" fill="transparent" data-tip="${esc(tipText(p.label + " · hour +" + (i + 1), lines))}"/>`;
+  }
+  return s + "</svg>";
+}
+function chart(c) {
+  const head = `<div class="chart" id="${c.id}"><h3>${esc(c.title)}</h3>${c.sub ? `<p class="sub">${md(c.sub)}</p>` : ""}`;
+  if (c.kind === "bars") return head + bars(c) + "</div>";
+  if (c.kind === "dumbbell") return head + dumbbell(c) + "</div>";
+  if (c.kind === "steps") return head + `<div class="slider"><label for="${c.id}-s">${esc(c.sliderLabel)}</label><input type="range" id="${c.id}-s" min="0" max="${c.panels.length - 1}" value="${c.start || 0}"><span id="${c.id}-l"></span></div><div id="${c.id}-v"></div><p class="sub" id="${c.id}-m"></p></div>`;
+  if (c.kind === "series") return head + `<div class="slider"><label for="${c.id}-s">${esc(c.sliderLabel)}</label><input type="range" id="${c.id}-s" min="0" max="${c.panels.length - 1}" value="${c.start || 0}"><span id="${c.id}-l"></span></div><div id="${c.id}-v"></div>` +
+    `<div class="legend"><span><i style="background:var(--fg)"></i>Actual</span>${c.series.map(s => `<span><i style="background:var(--${s.color})"></i>${esc(s.label)}</span>`).join("")}</div><p class="sub" id="${c.id}-m"></p></div>`;
+  return "";
+}
+function drawSeries(c) {
+  const inp = $(`#${c.id}-s`), draw = () => { const i = +inp.value, p = c.panels[i];
+    $(`#${c.id}-v`).innerHTML = seriesView(c, i); $(`#${c.id}-l`).textContent = p.label;
+    $(`#${c.id}-m`).innerHTML = c.series.map(s => `${esc(s.label)} misses by ${p[s.key + "_mae"].toFixed(2)} ${c.unit} on average this day`).join(" · ");
+    wire($(`#${c.id}-v`)); };
+  inp.addEventListener("input", draw); draw();
+}
+function drawSteps(c) {
+  const inp = $(`#${c.id}-s`), draw = () => { const p = c.panels[+inp.value];
+    $(`#${c.id}-v`).innerHTML = bars({title: c.title, rows: p.bars, max: c.max}); $(`#${c.id}-l`).textContent = p.label;
+    $(`#${c.id}-m`).innerHTML = md(p.note); wire($(`#${c.id}-v`)); };
+  inp.addEventListener("input", draw); draw();
+}
+const list = a => `<ul class="points">${a.map(t => `<li>${md(t)}</li>`).join("")}</ul>`;
+const table = t => `<div class="scroll"><table><thead><tr>${t.head.map((h, k) => `<th${(t.num || []).includes(k) ? ' class="num"' : ""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>${
+  t.rows.map(r => `<tr>${r.map((v, k) => `<td${(t.num || []).includes(k) ? ' class="num"' : ""}${k === t.chosen ? ' class="chosen"' : ""}>${md(String(v))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+const P = PAGE;
+$("#page").innerHTML = `
+<section class="block" id="problem"><div class="sec-head"><span class="n">1</span><h2>Problem</h2></div>
+  <div class="cols"><div class="box">${list(P.problem.points)}</div>
+  <div class="box"><span class="eyebrow">Today vs this project</span>
+    <div class="flow">${P.problem.today.map(t => `<span>${esc(t)}</span>`).join("<i>→</i>")}</div>
+    <div class="flow">${P.problem.project.map(t => `<span class="now">${esc(t)}</span>`).join("<i>→</i>")}</div>
+    <p class="sub" style="margin:0;font-size:13.5px;color:var(--muted)">${md(P.problem.need)}</p></div></div></section>
+<section class="block" id="data"><div class="sec-head"><span class="n">2</span><h2>Data</h2></div>${table(P.data)}${list(P.dataNotes)}</section>
+<section class="block" id="approach"><div class="sec-head"><span class="n">3</span><h2>Approach and model choice</h2></div>
+  <div class="flow">${P.pipeline.map((t, i) => `<span>${i + 1}. ${esc(t)}</span>`).join("<i>→</i>")}</div>${table(P.choices)}</section>
+<section class="block" id="solution"><div class="sec-head"><span class="n">4</span><h2>Solution</h2></div>
+  <div class="tiles">${P.tiles.map(t => `<div class="tile"><b>${esc(t[0])}</b><span>${md(t[1])}</span></div>`).join("")}</div>
+  ${P.charts.map(chart).join("")}
+  <div class="cols"><div class="box"><span class="eyebrow">Caveats</span>${list(P.caveats)}</div>
+  <div class="box"><span class="eyebrow">FAQ</span><div class="faq">${P.faq.map(q => `<details><summary>${esc(q[0])}</summary><div class="body">${md(q[1])}</div></details>`).join("")}</div></div></div></section>
+<section class="block" id="take"><div class="sec-head"><span class="n">5</span><h2>Our take</h2></div>
+  <div class="cols"><div class="box">${list(P.take)}</div><div class="box"><span class="eyebrow">What would change our mind</span>${list(P.changeMind)}</div></div></section>
+<section class="block">${P.more.map(m => `<details class="more" id="${m.id}"><summary>${esc(m.title)}</summary><div class="body">${
+  (m.charts || []).map(chart).join("")}${m.table ? table(m.table) : ""}${m.points ? list(m.points) : ""}${
+  m.gloss ? `<dl class="gloss">${m.gloss.map(g => `<dt>${esc(g[0])}</dt><dd>${md(g[1])}</dd>`).join("")}</dl>` : ""}</div></details>`).join("")}</section>`;
+$("#foot").innerHTML = P.footer.map(f => `<span>${md(f)}</span>`).join("");
+wire(document);
+[...P.charts, ...P.more.flatMap(m => m.charts || [])].filter(c => c.kind === "series").forEach(drawSeries);
+[...P.charts, ...P.more.flatMap(m => m.charts || [])].filter(c => c.kind === "steps").forEach(drawSteps);
+document.querySelectorAll("a[href^='#']").forEach(a => a.addEventListener("click", () => { const d = document.getElementById(a.getAttribute("href").slice(1)); if (d && d.tagName === "DETAILS") d.open = true; }));
+</script>

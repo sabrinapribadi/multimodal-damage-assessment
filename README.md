@@ -8,7 +8,7 @@
 2. **Why:** Responders need damage maps within hours, but clouds, smoke and night block optical images; radar sees through them.
 3. **Who:** Users: disaster responders and damage analysts.
    - Data: the public BRIGHT dataset (Hugging Face): pre-event optical and post-event radar tiles, labelled intact, damaged or destroyed.
-4. **Where:** [Dashboard](https://multimodal-damage-assessment-d3dyfacsb2zwiqhtgovrsb.streamlit.app/) on Streamlit Community Cloud, reading precomputed results (no model at runtime).
+4. **Where:** [Results page](https://sabrinapribadi.github.io/multimodal-damage-assessment/) and [technical walkthrough](https://sabrinapribadi.github.io/multimodal-damage-assessment/build.html) on GitHub Pages; [tile dashboard](https://multimodal-damage-assessment-d3dyfacsb2zwiqhtgovrsb.streamlit.app/) on Streamlit Community Cloud, no model at runtime.
 5. **When it fails:** Gate set first: radar must add ≥ 5 points of macro F1. Never met in six phases; best +2.2 points; adding Morocco gave −9.6.
    - No live A/B test: an offline ablation scores the same tiles with and without radar on validation and test splits.
 6. **How:** ResNet-18 with an optical-gated radar branch and a Lovász loss, against an optical-only twin on identical tiles.
@@ -31,7 +31,7 @@
 ## Free-tier limits
 
 - **Free-tier limits (R20):** the app sleeps after 12 hours without traffic; any visitor can wake it; up to 2.7 GB memory.
-- **Fallback while it sleeps:** the results tables in this README.
+- **Fallback while it sleeps:** the static [results page](https://sabrinapribadi.github.io/multimodal-damage-assessment/) on GitHub Pages.
 
 ## System Architecture
 
@@ -141,15 +141,15 @@ full 9.9 GB pre-event.zip or 3.3 GB post-event.zip.
 > while multimodal failed entirely on Damaged. SAR signals are less transferable across
 > earthquake construction types than optical signals.
 
-### Phase 3b — Turkey + Noto (soft labels only, freeze=8, SAR delta −0.114)
+### Phase 3b — Turkey + Noto (soft labels only, freeze=8, SAR delta −0.062)
 
 | Metric | Multimodal (Optical + SAR) | Optical-only | SAR delta |
 |--------|---------------------------|--------------|-----------|
-| **Val Macro F1** | 0.283 | **0.345** | **−0.114** |
+| **Val Macro F1** | 0.283 | **0.345** | **−0.062** |
 | Intact F1 | 0.790 | 0.798 | −0.008 |
 | Damaged F1 | 0.000 | 0.000 | 0.000 |
 | Destroyed F1 | 0.056 | 0.238 | −0.182 |
-| **Test Macro F1** | 0.261 | 0.282 | — |
+| **Test Macro F1** | **0.301** | 0.281 | — |
 
 > Phase 3b finding: Soft pixel-distribution labels (e.g. [0.85, 0.10, 0.05] instead of hard
 > Intact) hurt both models. Most tiles are >80% dominated by one class — soft labels flatten
@@ -232,7 +232,7 @@ full 9.9 GB pre-event.zip or 3.3 GB post-event.zip.
 | **Phase 2b** | ResNet-18 simple concat, Turkey + Noto. SAR class-conditional: Destroyed +6.4 pp, Damaged −16.7 pp. | −0.031 | **Complete** |
 | **Phase 3** | ResNet-18 + optical-gated scalar α + augmentation + Lovász. Best result: SAR delta +2.2 pp. Gate not passed. | **+0.022** | **Complete — Best** |
 | **Phase 4** | Turkey + Noto + Morocco + soft labels. Finding: SAR domain shift across construction types. | −0.096 | **Complete** |
-| **Phase 3b** | Turkey + Noto + soft labels only. Finding: soft labels hurt tile-level classification; freeze/unfreeze patience bug found and fixed. | −0.114 | **Complete** |
+| **Phase 3b** | Turkey + Noto + soft labels only. Finding: soft labels hurt tile-level classification; freeze/unfreeze patience bug found and fixed. | −0.062 | **Complete** |
 | **Phase 5** | ChangeMamba / DamageFormer. Needs CUDA cloud GPU. Pixel-level supervision required to clear the gate. | — | Exploratory |
 
 ## Architecture Decision Records

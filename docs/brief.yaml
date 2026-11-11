@@ -13,7 +13,7 @@ brief:
       - "Data: the public BRIGHT dataset (Hugging Face): pre-event optical and post-event radar tiles, labelled intact, damaged or destroyed."
   - w: Where
     lines:
-      - "[Dashboard](https://multimodal-damage-assessment-d3dyfacsb2zwiqhtgovrsb.streamlit.app/) on Streamlit Community Cloud, reading precomputed results (no model at runtime)."
+      - "[Results page](https://sabrinapribadi.github.io/multimodal-damage-assessment/) and [technical walkthrough](https://sabrinapribadi.github.io/multimodal-damage-assessment/build.html) on GitHub Pages; [tile dashboard](https://multimodal-damage-assessment-d3dyfacsb2zwiqhtgovrsb.streamlit.app/) on Streamlit Community Cloud, no model at runtime."
   - w: When it fails
     lines:
       - "Gate set first: radar must add ≥ 5 points of macro F1. Never met in six phases; best +2.2 points; adding Morocco gave −9.6."

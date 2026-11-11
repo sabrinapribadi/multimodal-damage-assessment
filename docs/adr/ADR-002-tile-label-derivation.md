@@ -103,7 +103,7 @@ return np.array([
 | Multimodal val F1 | 0.580 | 0.283 | −0.297 |
 | Optical-only val F1 | 0.558 | 0.345 | −0.213 |
 
-Both models degraded significantly. SAR delta went from +0.022 (Phase 3) to −0.114 (Phase 3b).
+Both models degraded significantly. SAR delta went from +0.022 (Phase 3) to −0.062 (Phase 3b).
 
 **Root cause:** The tile-level classification task is a granularity mismatch for soft labels.
 Most tiles (>80%) are dominated by a single class — a tile that is 90% Intact buildings has

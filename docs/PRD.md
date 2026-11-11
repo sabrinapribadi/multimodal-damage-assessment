@@ -530,7 +530,7 @@ Phase 4 — Turkey + Noto + Morocco Earthquakes (soft pixel-distribution labels)
 Phase 3b — Turkey + Noto only (soft labels, freeze=8, backbone LR×0.05):
 - Same events as Phase 3 (Morocco removed to isolate soft-label effect)
 - FREEZE_EPOCHS=8, patience only counts after unfreeze, backbone LR×0.05
-- Multimodal val F1: 0.283 | Optical-only val F1: 0.345 | SAR delta: −0.114
+- Multimodal val F1: 0.283 | Optical-only val F1: 0.345 | SAR delta: −0.062
 - Key finding: soft pixel-distribution labels alone hurt both models. Most tiles are >80%
   dominated by one class — soft labels flatten the gradient for these cases, producing a
   shallower loss landscape and slower/weaker convergence. Hard one-hot labels are better
@@ -632,7 +632,7 @@ Phase 3b — Turkey + Noto only (soft labels, freeze=8, backbone LR×0.05):
     Phase 2b (complete): ResNet-18, Turkey + Noto — SAR delta −0.031 macro, Destroyed +0.064
     Phase 3  (complete): ResNet-18 + optical gate + Lovász + augmentation — SAR delta +0.022 (BEST)
     Phase 4  (complete): Turkey + Noto + Morocco + soft labels — SAR delta −0.096 (domain shift)
-    Phase 3b (complete): Turkey + Noto + soft labels only — SAR delta −0.114 (soft labels hurt)
+    Phase 3b (complete): Turkey + Noto + soft labels only — SAR delta −0.062 (soft labels hurt)
     Phase 5  (deferred): ChangeMamba / pixel-level UNet — needs CUDA cloud GPU
 - ADR Index (see docs/adr/README.md for full index with decision dependency graph):
     ADR-001: Tile classification as stepping stone to pixel segmentation

@@ -2,6 +2,14 @@
 
 Newest first. Each entry uses STAR (Situation, Task, Action, Result) so it can be told as a story.
 
+## [5.4.0] — 2026-11-11 — Results page, technical walkthrough (R3, R14); Phase 3b figures corrected
+**Files:** docs/index.html (new), docs/build.html (new), docs/assets/preview*.png (new), tests/browser/ (new), .github/workflows/ci.yml, docs/brief.yaml, README.md, docs/PRD.md, docs/adr/ADR-002, ADR-003
+- **Situation:** Results lived only in long README tables and the dashboard; an audit found Phase 3b's radar effect written as −11.4 points.
+- **Task:** A results page and a phase-by-phase walkthrough, browser-tested, with every figure traced to a file.
+- **Action:** Phase 3 recomputed from the committed predictions (0.580 vs 0.558; test 0.454 vs 0.512, unchanged); Phase 3b corrected from the run files to −6.2 points (validation 0.283 vs 0.345) and test 0.301 vs 0.281; results page with a slider through all six phases; walkthrough of every phase; browser tests and gated Pages in CI.
+- **Result:** Six phases, none passing the 5-point bar, each with its reason; all browser checks pass.
+- **Talking point:** "When I rebuilt the pages from the result files, I found a subtraction error in my own write-up and corrected it everywhere."
+
 ## [5.3.0] — 2026-11-11 — Evidence tables for every cited paper (R2)
 **Files:** docs/references.yaml (new), scripts/evidence.py (new), docs/adr/ADR-*.md, data/outputs/references_evidence.json, CHANGELOG.md
 - **Situation:** ADRs listed papers without venue, peer review or citation counts.

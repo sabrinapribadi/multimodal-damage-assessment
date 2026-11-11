@@ -78,7 +78,7 @@ MODEL_TYPE=multimodal    python scripts/train_model.py   # candidate
 | Phase 2b | Turkey + Noto | ResNet-18 concat | 0.597 | 0.628 | −0.031 | Not passed (negative) |
 | **Phase 3** | Turkey + Noto | ResNet-18 opt-gate | **0.580** | 0.558 | **+0.022** | **Not passed — best result** |
 | Phase 4 | Turkey + Noto + Morocco | ResNet-18 soft labels | 0.396 | 0.492 | −0.096 | Not passed (negative) |
-| Phase 3b | Turkey + Noto | ResNet-18 soft labels | 0.283 | 0.345 | −0.114 | Not passed (negative) |
+| Phase 3b | Turkey + Noto | ResNet-18 soft labels | 0.283 | 0.345 | −0.062 | Not passed (negative) |
 
 **Gate verdict (final):** Not cleared. Closest approach: +0.022 (Phase 3). Required: +0.050.
 
@@ -88,7 +88,7 @@ MODEL_TYPE=multimodal    python scripts/train_model.py   # candidate
 - Phase 2b gate (−0.031 macro, but Destroyed +6.4 pp, Damaged −16.7 pp): gate revealed SAR is class-conditional — drove the optical-gated fusion design in Phase 3
 - Phase 3 gate (+0.022): gate confirmed the optical gate improved SAR signal; not yet sufficient — drove the data expansion and soft label experiments
 - Phase 4 gate (−0.096): gate confirmed Morocco domain shift breaks SAR fusion more than optical — falsified the hypothesis that more earthquake data helps multimodal
-- Phase 3b gate (−0.114): gate confirmed soft labels hurt both models at tile-level granularity — falsified the soft label hypothesis
+- Phase 3b gate (−0.062): gate confirmed soft labels hurt both models at tile-level granularity — falsified the soft label hypothesis
 
 **Research conclusion:** The gate worked correctly as a falsification instrument throughout. Each negative result was diagnosable and redirected experimentation. The +0.050 bar appropriately distinguishes noise from signal — the +0.022 Phase 3 result is likely real but insufficient to claim operational SAR value at this architecture scale. Clearing the gate likely requires pixel-level supervision (UNet decoder), explicit temporal change encoding (ChangeMamba), or domain-specific SAR pre-training.
 

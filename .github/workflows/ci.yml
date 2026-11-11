@@ -1,5 +1,7 @@
 name: ci
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -13,3 +15,37 @@ jobs:
       - name: Brief in sync with docs/brief.yaml (R22)
         run: python scripts/brief.py --check
       - run: python -m pytest -q tests
+
+  # R10/R19: the pages' browser tests in real Chrome (desktop light, dark, phone 400 px); a failure blocks publishing.
+  browser:
+    runs-on: ubuntu-latest
+    env:
+      NODE_PATH: /tmp/pt/node_modules
+      CHROME_ARGS: --no-sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - run: npm install --no-save --prefix /tmp/pt puppeteer-core@23.11.1
+      - run: echo "CHROME_PATH=$(which google-chrome)" >> "$GITHUB_ENV"
+      - run: node tests/browser/hover_test.js "$PWD/docs/index.html"
+      - run: node tests/browser/build_test.js "$PWD/docs/build.html" /tmp
+
+  # R19: GitHub Pages deploy from main by workflow, only after unit and browser tests pass.
+  pages:
+    needs: [test, browser]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: {path: docs}
+      - id: deploy
+        uses: actions/deploy-pages@v4
