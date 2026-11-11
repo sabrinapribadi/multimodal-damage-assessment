@@ -1,0 +1,14 @@
+# Every paper or dataset cited in an ADR (rule R2). `python scripts/evidence.py` fetches venue, type and citations
+# from OpenAlex and writes data/outputs/references_evidence.json plus a table per ADR.
+- key: chen_2025_bright
+  doi: 10.5194/essd-17-6217-2025
+  used_in: [ADR-001, ADR-002, ADR-003, ADR-004, ADR-005, ADR-006]
+  role: BRIGHT dataset, labels, splits and baselines
+- key: he_2016_resnet
+  doi: 10.1109/CVPR.2016.90
+  used_in: [ADR-004]
+  role: ResNet backbone
+- key: ronneberger_2015_unet
+  doi: 10.1007/978-3-319-24574-4_28
+  used_in: [ADR-005]
+  role: U-Net encoder-decoder (considered)
